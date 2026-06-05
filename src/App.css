@@ -1,0 +1,213 @@
+:root {
+  --primary-color: #2563eb;
+  --success-color: #16a34a;
+  --bg-color: #f3f4f6;
+  --card-bg: #ffffff;
+  --text-color: #1f2937;
+  --border-radius: 12px;
+}
+
+/* 1. RESET CRÍTICO */
+* {
+  box-sizing: border-box; /* Garante que padding não aumenta a largura total */
+  margin: auto;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  width: 100vw; /* Ocupa a largura total */
+  overflow-x: hidden; /* Trava final contra vazamentos */
+}
+
+/* 2. CONTAINER PRINCIPAL EM VW */
+.app-container {
+  width: 94vw; /* Ocupa 94% da tela (sobra 3% de cada lado) */
+  max-width: 600px; /* No PC, trava em 600px para não ficar gigante */
+  margin: 1rem auto; /* Centraliza vertical e horizontalmente */
+  padding-bottom: 5rem;
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #111827;
+}
+
+/* 3. CARTÕES */
+.card {
+  background: var(--card-bg);
+  padding: 1rem; /* Usando rem em vez de px */
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+  width: 100%; /* Ocupa 100% dos 94vw do pai */
+}
+
+.relatorio-div {
+  margin: 0;
+}
+
+.card h2 {
+  font-size: 1.25rem;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* 4. INPUTS FLUIDOS */
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+input,
+select {
+  width: 100%; /* Fundamental: ocupa 100% do pai */
+  max-width: 100%; /* Segurança extra */
+  padding: 0.8rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  font-size: 1rem; /* 16px base */
+  margin-bottom: 1rem;
+}
+
+/* Grupos de Input */
+.input-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.input-group select {
+  margin-bottom: 0;
+  flex: 1; /* Cresce para ocupar espaço */
+  min-width: 0; /* Permite encolher se necessário */
+}
+
+/* Botões */
+.btn-add {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  width: 3rem; /* Aprox 48px */
+  height: auto; /* Acompanha altura do input */
+  font-size: 1.5rem;
+  cursor: pointer;
+  flex-shrink: 0; /* Não deixa o botão ser esmagado */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-save {
+  width: 100%;
+  background-color: var(--success-color);
+  color: white;
+  padding: 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* 5. TABELA BLINDADA */
+.table-container {
+  width: 100%; /* Ocupa 100% do cartão */
+  overflow-x: auto; /* Rola horizontalmente se precisar */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 0.5rem;
+  max-height: 100vh;
+  border: 1px solid #f3f4f6;
+  border-radius: 0.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Sem min-width fixo! */
+}
+
+th,
+td {
+  padding: 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.9rem;
+  white-space: nowrap; /* Isso força a tabela a crescer e ativar o scroll do container */
+}
+
+th {
+  background-color: #f9fafb;
+}
+
+/* Filtros */
+.filtros-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .filtros-container {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}
+
+/* --- CORREÇÃO PARA IPHONE (SAFARI / IOS) --- */
+
+input,
+select,
+textarea {
+  /* Força a cor do texto a ser escura, mesmo no Dark Mode */
+  color: #1f2937 !important;
+  background-color: #ffffff !important;
+
+  /* Propriedade específica da Apple para a cor do texto */
+  -webkit-text-fill-color: #1f2937 !important;
+
+  /* Remove a transparência que o iOS coloca por padrão */
+  opacity: 1 !important;
+}
+
+/* Correção específica para INPUT DE DATA no iOS */
+input[type="date"] {
+  /* O iOS às vezes esconde a data se a altura não for suficiente */
+  min-height: 44px;
+
+  /* Remove o estilo arredondado padrão da Apple */
+  -webkit-appearance: none;
+  appearance: none;
+
+  /* Alinhamento */
+  display: block;
+  line-height: 1.2;
+}
+
+/* Garante que o placeholder (texto de ajuda) seja visível mas cinza claro */
+::placeholder {
+  color: #6b7280 !important; /* Cinza médio */
+  opacity: 1; /* Firefox precisa disto */
+  -webkit-text-fill-color: #6b7280 !important;
+}
+
+/* Correção para o ícone do Select (Dropdown) */
+select {
+  /* No iOS, o fundo branco pode cobrir a seta. 
+     Isto garante que o fundo é opaco e a cor é forçada. */
+  background-image: none; /* Remove ícones nativos estranhos se houver */
+}
