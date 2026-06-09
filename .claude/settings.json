@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\gusta\\\\Documents\\\\LearnSpace\\\\rohan\\\\gestao-transportes\\\\src\\\\hooks\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\gusta\\\\Documents\\\\LearnSpace\\\\rohan\\\\gestao-transportes\\\\src\\\\components\")",
+      "Edit(agent/**)",
+      "Write(agent/**)",
+      "Edit(src/**)",
+      "Write(src/**)",
+      "Bash(npm install*)",
+      "Bash(npm run *)",
+      "Bash(node *)",
+      "Bash(git status*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(railway *)",
+      "PowerShell(npm install*)",
+      "PowerShell(npm run *)",
+      "PowerShell(node *)",
+      "PowerShell(git status*)",
+      "PowerShell(git add *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git diff*)",
+      "PowerShell(git log*)",
+      "PowerShell(railway *)",
+      "PowerShell(New-Item -ItemType Directory -Force *)"
+    ]
+  }
+}
