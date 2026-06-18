@@ -43,10 +43,13 @@ export async function rascunhosProximosDias(empresa, diasAntecedencia = 3) {
 }
 
 export async function viagensComValorPendente(empresa) {
+  // Filtra apenas trips que realmente não têm valores — evita falso positivo
+  // caso marcarRealizadasPendentes tenha marcado uma trip com valores por engano.
   let query = supabase
     .from("viagens")
     .select(SELECT_DIGEST)
     .in("status", ["realizada_pendente", "confirmada_sem_valor"])
+    .or("valor_frete.is.null,valor_motorista.is.null")
     .order("data", { ascending: true });
 
   if (empresa) query = query.or(`empresa.eq.${empresa},empresa.is.null`);

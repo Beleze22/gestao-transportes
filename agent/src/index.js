@@ -1,8 +1,11 @@
 import "dotenv/config";
 import express from "express";
 import { extrairMensagemRecebida, enviarMensagem } from "./telegram.js";
+import { transcreverAudio } from "./services/transcricao.js";
 import { processarMensagem } from "./agent.js";
 import { iniciarScheduler } from "./scheduler.js";
+import { listarConfigNotificacoes, viagensDoDia, rascunhosProximosDias, viagensComValorPendente } from "./services/agenda.js";
+import { enviarDigestManha, enviarDigestNoite } from "./services/notify.js";
 
 const app = express();
 app.use(express.json());
@@ -29,17 +32,35 @@ app.post("/webhook/telegram", async (req, res) => {
     const mensagem = extrairMensagemRecebida(req.body);
     if (!mensagem) return;
 
-    const { chatId, texto } = mensagem;
+    const { chatId, tipo } = mensagem;
 
     if (whitelist.length && !whitelist.includes(chatId)) {
       console.log(`[webhook] mensagem ignorada — chat_id fora da whitelist: ${chatId}`);
       return;
     }
 
+    let texto;
+    if (tipo === "audio") {
+      console.log(`[webhook] áudio recebido de ${chatId}, transcrevendo...`);
+      texto = await transcreverAudio(mensagem.fileId);
+      if (!texto) {
+        await enviarMensagem(chatId, "Não consegui entender o áudio. Pode tentar novamente ou enviar por texto?");
+        return;
+      }
+    } else {
+      texto = mensagem.texto;
+    }
+
     const resposta = await processarMensagem(chatId, texto);
     await enviarMensagem(chatId, resposta);
   } catch (err) {
     console.error("[webhook] erro ao processar mensagem:", err);
+    try {
+      const msg = extrairMensagemRecebida(req.body);
+      if (msg?.chatId) {
+        await enviarMensagem(msg.chatId, "Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.");
+      }
+    } catch (_) {}
   }
 });
 
@@ -58,6 +79,35 @@ app.post("/test/mensagem", async (req, res) => {
     res.json({ resposta });
   } catch (err) {
     console.error("[test/mensagem] erro:", err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post("/test/digest-manha", async (_req, res) => {
+  try {
+    const configs = await listarConfigNotificacoes();
+    for (const config of configs) {
+      const viagens = await viagensDoDia(config.empresa_padrao);
+      await enviarDigestManha(config.telefone, viagens);
+    }
+    res.json({ ok: true, enviado_para: configs.map((c) => c.telefone) });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+app.post("/test/digest-noite", async (_req, res) => {
+  try {
+    const configs = await listarConfigNotificacoes();
+    for (const config of configs) {
+      const [rascunhos, pendentesValor] = await Promise.all([
+        rascunhosProximosDias(config.empresa_padrao, config.dias_antecedencia),
+        viagensComValorPendente(config.empresa_padrao),
+      ]);
+      await enviarDigestNoite(config.telefone, { rascunhos, pendentesValor }, config.dias_antecedencia);
+    }
+    res.json({ ok: true, enviado_para: configs.map((c) => c.telefone) });
+  } catch (err) {
     res.status(500).json({ erro: err.message });
   }
 });
