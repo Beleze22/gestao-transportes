@@ -6,13 +6,16 @@ function formatarData(iso) {
 }
 
 function linhaViagem(v) {
-  const hora = v.horario_carregamento ? `${v.horario_carregamento.slice(0, 5)} — ` : "";
   const cliente = v.clientes?.nome || "cliente não definido";
   const motorista = v.motoristas?.nome || "motorista não definido";
   const placa = v.caminhoes?.placa || "veículo não definido";
-  let linha = `• ${hora}${v.empresa} | Cliente: ${cliente} | ${motorista} | ${placa}`;
-  if (v.local_carregamento) linha += `\n  📍 Carregamento: ${v.local_carregamento}`;
-  if (v.local_descarregamento) linha += `\n  📍 Descarregamento: ${v.local_descarregamento}`;
+  let linha = `• ${v.empresa} | ${cliente} | ${motorista} | ${placa}`;
+  const horaCarreg = v.horario_carregamento ? v.horario_carregamento.slice(0, 5) : "";
+  const horaDescarg = v.horario_descarregamento ? v.horario_descarregamento.slice(0, 5) : "";
+  const campoCarreg = [v.local_carregamento, horaCarreg].filter(Boolean).join(" ");
+  const campoDescarg = [v.local_descarregamento, horaDescarg].filter(Boolean).join(" ");
+  if (campoCarreg) linha += ` | ${campoCarreg}`;
+  if (campoDescarg) linha += ` | ${campoDescarg}`;
   return linha;
 }
 

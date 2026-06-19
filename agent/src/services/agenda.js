@@ -47,6 +47,7 @@ export async function viagensComValorPendente(empresa) {
     .from("viagens")
     .select(SELECT_DIGEST)
     .in("status", ["realizada_pendente", "confirmada_sem_valor"])
+    .or("valor_frete.is.null,valor_motorista.is.null")
     .order("data", { ascending: true });
 
   if (empresa) query = query.or(`empresa.eq.${empresa},empresa.is.null`);

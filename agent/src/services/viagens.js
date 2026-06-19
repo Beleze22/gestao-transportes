@@ -74,12 +74,26 @@ export async function consultarViagens(filtros = {}) {
 
 export async function marcarRealizadasPendentes() {
   const hoje = new Date().toISOString().slice(0, 10);
-  const { data, error } = await supabase
+
+  // Viagens com valores definidos → concluida direto
+  const { data: concluidas, error: err1 } = await supabase
+    .from("viagens")
+    .update({ status: "concluida" })
+    .eq("status", "confirmada")
+    .lt("data", hoje)
+    .not("valor_frete", "is", null)
+    .not("valor_motorista", "is", null)
+    .select("id");
+  if (err1) throw err1;
+
+  // Viagens sem valores → realizada_pendente para cobrança
+  const { data: pendentes, error: err2 } = await supabase
     .from("viagens")
     .update({ status: "realizada_pendente" })
     .eq("status", "confirmada")
     .lt("data", hoje)
     .select("id");
-  if (error) throw error;
-  return data;
+  if (err2) throw err2;
+
+  return [...(concluidas ?? []), ...(pendentes ?? [])];
 }
