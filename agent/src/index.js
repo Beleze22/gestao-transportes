@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import { extrairMensagemRecebida, enviarMensagem } from "./telegram.js";
+import { extrairMensagemRecebida, enviarMensagem, transcreverAudio } from "./telegram.js";
 import { processarMensagem } from "./agent.js";
 import { iniciarScheduler } from "./scheduler.js";
 import { listarConfigNotificacoes, viagensDoDia, rascunhosProximosDias, viagensComValorPendente } from "./services/agenda.js";
@@ -33,11 +33,23 @@ app.post("/webhook/telegram", async (req, res) => {
     const mensagem = extrairMensagemRecebida(req.body);
     if (!mensagem) return;
 
-    const { chatId, texto } = mensagem;
+    const { chatId, audioFileId } = mensagem;
+    let { texto } = mensagem;
 
     if (whitelist.length && !whitelist.includes(chatId)) {
       console.log(`[webhook] mensagem ignorada — chat_id fora da whitelist: ${chatId}`);
       return;
+    }
+
+    if (audioFileId) {
+      try {
+        texto = await transcreverAudio(audioFileId);
+        console.log(`[webhook] áudio transcrito (${chatId}): ${texto}`);
+      } catch (err) {
+        console.error("[webhook] erro na transcrição:", err);
+        await enviarMensagem(chatId, "Não consegui entender o áudio. Pode mandar em texto?");
+        return;
+      }
     }
 
     const resposta = await processarMensagem(chatId, texto);
