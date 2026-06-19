@@ -3,7 +3,7 @@ import { definicoes, executar } from "./tools.js";
 import { buscarHistorico, registrarMensagem } from "./services/history.js";
 
 const anthropic = new Anthropic({
-  defaultHeaders: { "Accept-Encoding": "identity" },
+  fetch: globalThis.fetch,
 });
 
 // [FIX #5] Limite de tokens estimados no histórico para evitar context overflow.
