@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import { extrairMensagemRecebida, enviarMensagem } from "./telegram.js";
-import { transcreverAudio } from "./services/transcricao.js";
 import { processarMensagem } from "./agent.js";
 import { iniciarScheduler } from "./scheduler.js";
 import { listarConfigNotificacoes, viagensDoDia, rascunhosProximosDias, viagensComValorPendente } from "./services/agenda.js";
@@ -22,35 +21,21 @@ app.get("/health", (_req, res) =>
 );
 
 app.post("/webhook/telegram", async (req, res) => {
-  // Valida o secret token que o Telegram envia no header (configurado no setWebhook).
   if (webhookSecret && req.headers["x-telegram-bot-api-secret-token"] !== webhookSecret) {
     return res.status(403).end();
   }
 
-  // Responde imediatamente — o processamento acontece de forma assíncrona.
   res.status(200).end();
 
   try {
     const mensagem = extrairMensagemRecebida(req.body);
     if (!mensagem) return;
 
-    const { chatId, tipo } = mensagem;
+    const { chatId, texto } = mensagem;
 
     if (whitelist.length && !whitelist.includes(chatId)) {
       console.log(`[webhook] mensagem ignorada — chat_id fora da whitelist: ${chatId}`);
       return;
-    }
-
-    let texto;
-    if (tipo === "audio") {
-      console.log(`[webhook] áudio recebido de ${chatId}, transcrevendo...`);
-      texto = await transcreverAudio(mensagem.fileId);
-      if (!texto) {
-        await enviarMensagem(chatId, "Não consegui entender o áudio. Pode tentar novamente ou enviar por texto?");
-        return;
-      }
-    } else {
-      texto = mensagem.texto;
     }
 
     const resposta = await processarMensagem(chatId, texto);
@@ -66,7 +51,6 @@ app.post("/webhook/telegram", async (req, res) => {
   }
 });
 
-// Endpoint de teste: aciona o agente via HTTP em vez do Telegram.
 app.post("/test/mensagem", async (req, res) => {
   const { chatId, texto } = req.body || {};
   if (!chatId || !texto) {

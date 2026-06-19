@@ -14,15 +14,9 @@ export async function enviarMensagem(chatId, texto) {
 
 export function extrairMensagemRecebida(update) {
   const msg = update?.message;
-  if (!msg) return null;
-
-  if (msg.text) {
-    return { chatId: String(msg.chat.id), texto: msg.text, tipo: "texto" };
-  }
-
-  if (msg.voice) {
-    return { chatId: String(msg.chat.id), fileId: msg.voice.file_id, tipo: "audio" };
-  }
-
-  return null;
+  if (!msg?.text) return null;
+  return {
+    chatId: String(msg.chat.id),
+    texto: msg.text,
+  };
 }
