@@ -17,7 +17,9 @@ const whitelist = (process.env.TELEGRAM_ALLOWED_IDS || "")
 
 const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || "";
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? "local" })
+);
 
 app.post("/webhook/telegram", async (req, res) => {
   // Valida o secret token que o Telegram envia no header (configurado no setWebhook).
