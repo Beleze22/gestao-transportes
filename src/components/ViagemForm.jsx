@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export default function ViagemForm({
   viagem,
   setViagem,
@@ -9,6 +11,8 @@ export default function ViagemForm({
   onAdicionarMotorista,
   onAdicionarCaminhao,
 }) {
+  const [mostrarLogistica, setMostrarLogistica] = useState(false);
+
   return (
     <div className="card">
       <h2>Nova Viagem</h2>
@@ -96,19 +100,71 @@ export default function ViagemForm({
             placeholder="Frete"
             value={viagem.valorFrete}
             onChange={(e) => setViagem({ ...viagem, valorFrete: e.target.value })}
-            required
           />
           <input
             type="number"
             placeholder="Pgto Mot."
             value={viagem.valorMotorista}
             onChange={(e) => setViagem({ ...viagem, valorMotorista: e.target.value })}
-            required
           />
         </div>
 
+        <button
+          type="button"
+          className="btn-toggle-logistica"
+          onClick={() => setMostrarLogistica((v) => !v)}
+        >
+          {mostrarLogistica ? "▲ Ocultar logística" : "▼ Logística (opcional)"}
+        </button>
+
+        {mostrarLogistica && (
+          <div className="logistica-section">
+            <label>Local de carregamento:</label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <input
+                type="text"
+                placeholder="Origem"
+                value={viagem.localCarregamento}
+                onChange={(e) => setViagem({ ...viagem, localCarregamento: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <input
+                type="time"
+                value={viagem.horarioCarregamento}
+                onChange={(e) => setViagem({ ...viagem, horarioCarregamento: e.target.value })}
+                style={{ width: "110px", flex: "none" }}
+              />
+            </div>
+
+            <label>Local de descarregamento:</label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <input
+                type="text"
+                placeholder="Destino"
+                value={viagem.localDescarregamento}
+                onChange={(e) => setViagem({ ...viagem, localDescarregamento: e.target.value })}
+                style={{ flex: 1 }}
+              />
+              <input
+                type="time"
+                value={viagem.horarioDescarregamento}
+                onChange={(e) => setViagem({ ...viagem, horarioDescarregamento: e.target.value })}
+                style={{ width: "110px", flex: "none" }}
+              />
+            </div>
+
+            <label>Observações:</label>
+            <textarea
+              placeholder="Informações adicionais..."
+              value={viagem.observacoes}
+              onChange={(e) => setViagem({ ...viagem, observacoes: e.target.value })}
+              rows={3}
+            />
+          </div>
+        )}
+
         <button type="submit" className="btn-save">
-          Salvar Viagem
+          Salvar Viagem 🚛
         </button>
       </form>
     </div>
