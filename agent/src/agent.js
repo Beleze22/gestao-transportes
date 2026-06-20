@@ -38,18 +38,23 @@ function truncarHistorico(historico) {
 }
 
 function dataDeHoje() {
-  return new Date().toLocaleDateString("pt-BR", {
+  const agora = new Date();
+  const iso = agora.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); // YYYY-MM-DD
+  const legivel = agora.toLocaleDateString("pt-BR", {
     timeZone: "America/Sao_Paulo",
     weekday: "long",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
+  return { iso, legivel };
 }
 
 function montarSystemPrompt() {
-  return `DATA ATUAL: ${dataDeHoje()} (horário de Brasília).
+  const { iso, legivel } = dataDeHoje();
+  return `DATA ATUAL: ${legivel} | ISO: ${iso} (horário de Brasília).
 REGRA DE DATA: use EXCLUSIVAMENTE essa data como "hoje". NUNCA infira a data do histórico de conversa — mensagens antigas podem mencionar datas passadas e isso não representa a data atual. Se o usuário disser "hoje" ou "agora", use sempre a DATA ATUAL acima.
+Ao usar a data de hoje em qualquer ferramenta, copie EXATAMENTE o valor ISO indicado acima (${iso}) — não converta nem recalcule.
 Ao confirmar o cadastro de uma viagem, mostre a data no formato "DD/MM (dia da semana)" — não use as palavras "hoje" ou "amanhã" na confirmação para evitar ambiguidade.
 
 ${SYSTEM_PROMPT_BASE}`;
