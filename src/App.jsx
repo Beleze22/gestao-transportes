@@ -1,50 +1,25 @@
 import { useState } from "react";
-import useTransporteData from "./hooks/useTransporteData";
-import TabNav from "./components/TabNav";
-import ViagemForm from "./components/ViagemForm";
-import DespesaForm from "./components/DespesaForm";
-import FiltrosRelatorio from "./components/FiltrosRelatorio";
-import ResumoFinanceiro from "./components/ResumoFinanceiro";
-import TabelasRelatorio from "./components/TabelasRelatorio";
-import DiarioViagens from "./components/DiarioViagens";
-import Toast from "./components/Toast";
-import ModalQuickAdd from "./components/ModalQuickAdd";
-import "./App.css";
+import { Toaster, toast } from "sonner";
+import useTransporteData from "@/hooks/useTransporteData";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ViagemForm from "@/components/ViagemForm";
+import DespesaForm from "@/components/DespesaForm";
+import Dashboard from "@/components/Dashboard";
+import ModalQuickAdd from "@/components/ModalQuickAdd";
 
 function App() {
   const {
-    modo,
-    setModo,
     loading,
-    viagem,
-    setViagem,
-    despesa,
-    setDespesa,
-    filtro,
-    setFiltro,
-    relatorio,
-    listaClientes,
-    listaMotoristas,
-    listaCaminhoes,
-    listaViagens,
-    listaCategorias,
-    handleSalvarViagem,
-    handleSalvarDespesa,
-    adicionarCliente,
-    adicionarMotorista,
-    adicionarCaminhao,
-    adicionarCategoria,
-    gerarRelatorio,
+    viagem, setViagem,
+    despesa, setDespesa,
+    listaClientes, listaMotoristas, listaCaminhoes,
+    listaViagens, listaDespesas, listaCategorias,
+    handleSalvarViagem, handleSalvarDespesa,
+    adicionarCliente, adicionarMotorista, adicionarCaminhao, adicionarCategoria,
   } = useTransporteData();
 
-  const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
   const [modalKey, setModalKey] = useState(0);
-
-  const showToast = (message, type = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
-  };
 
   const openModal = (config) => {
     setModal(config);
@@ -54,132 +29,122 @@ function App() {
   const onSalvarViagem = async (e) => {
     try {
       await handleSalvarViagem(e);
-      showToast("Viagem salva com sucesso! 🚀");
+      toast.success("Viagem salva com sucesso!");
     } catch (err) {
-      showToast(err.message, "error");
+      toast.error(err.message);
     }
   };
 
   const onSalvarDespesa = async (e) => {
     try {
       await handleSalvarDespesa(e);
-      showToast("Despesa registrada! 💸");
+      toast.success("Despesa registrada!");
     } catch (err) {
-      showToast(err.message, "error");
+      toast.error(err.message);
     }
   };
 
-  const handleAdicionarCliente = () => {
+  const handleAdicionarCliente = () =>
     openModal({
       title: "Novo Cliente",
       fields: [{ key: "nome", label: "Nome", placeholder: "Nome do cliente" }],
-      onConfirm: async (values) => {
-        try {
-          await adicionarCliente(values.nome);
-          showToast("Cliente adicionado!");
-        } catch (err) {
-          showToast(err.message, "error");
-        }
+      onConfirm: async (v) => {
+        try { await adicionarCliente(v.nome); toast.success("Cliente adicionado!"); }
+        catch (err) { toast.error(err.message); }
       },
     });
-  };
 
-  const handleAdicionarMotorista = () => {
+  const handleAdicionarMotorista = () =>
     openModal({
       title: "Novo Motorista",
       fields: [{ key: "nome", label: "Nome", placeholder: "Nome do motorista" }],
-      onConfirm: async (values) => {
-        try {
-          await adicionarMotorista(values.nome);
-          showToast("Motorista adicionado!");
-        } catch (err) {
-          showToast(err.message, "error");
-        }
+      onConfirm: async (v) => {
+        try { await adicionarMotorista(v.nome); toast.success("Motorista adicionado!"); }
+        catch (err) { toast.error(err.message); }
       },
     });
-  };
 
-  const handleAdicionarCaminhao = () => {
+  const handleAdicionarCaminhao = () =>
     openModal({
       title: "Novo Caminhão",
       fields: [
         { key: "placa", label: "Placa", placeholder: "Ex: ABC-1234" },
         { key: "modelo", label: "Modelo", placeholder: "Ex: Volvo FH" },
       ],
-      onConfirm: async (values) => {
-        try {
-          await adicionarCaminhao(values.placa, values.modelo);
-          showToast("Caminhão adicionado!");
-        } catch (err) {
-          showToast(err.message, "error");
-        }
+      onConfirm: async (v) => {
+        try { await adicionarCaminhao(v.placa, v.modelo); toast.success("Caminhão adicionado!"); }
+        catch (err) { toast.error(err.message); }
       },
     });
-  };
 
-  const handleAdicionarCategoria = () => {
+  const handleAdicionarCategoria = () =>
     openModal({
       title: "Nova Categoria",
       fields: [{ key: "nome", label: "Categoria", placeholder: "Ex: Combustível, Pedágio..." }],
-      onConfirm: async (values) => {
-        try {
-          await adicionarCategoria(values.nome);
-          showToast("Categoria adicionada!");
-        } catch (err) {
-          showToast(err.message, "error");
-        }
+      onConfirm: async (v) => {
+        try { await adicionarCategoria(v.nome); toast.success("Categoria adicionada!"); }
+        catch (err) { toast.error(err.message); }
       },
     });
-  };
 
   if (loading) {
     return (
-      <div className="app-container">
-        <div className="loading-overlay">
-          <div className="spinner" />
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
       </div>
     );
   }
 
   return (
-    <div className="app-container">
-      <TabNav modo={modo} onModo={setModo} />
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-2xl px-4 py-6 pb-20">
+        <h1 className="mb-6 text-center text-2xl font-bold tracking-tight">
+          🚛 Gestão de Transportes
+        </h1>
 
-      {modo === "viagem" && (
-        <ViagemForm
-          viagem={viagem}
-          setViagem={setViagem}
-          listaClientes={listaClientes}
-          listaMotoristas={listaMotoristas}
-          listaCaminhoes={listaCaminhoes}
-          onSalvar={onSalvarViagem}
-          onAdicionarCliente={handleAdicionarCliente}
-          onAdicionarMotorista={handleAdicionarMotorista}
-          onAdicionarCaminhao={handleAdicionarCaminhao}
-        />
-      )}
+        <Tabs defaultValue="viagem">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="viagem">Viagem</TabsTrigger>
+            <TabsTrigger value="despesa">Despesa</TabsTrigger>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          </TabsList>
 
-      {modo === "despesa" && (
-        <DespesaForm
-          despesa={despesa}
-          setDespesa={setDespesa}
-          listaCategorias={listaCategorias}
-          onSalvar={onSalvarDespesa}
-          onAdicionarCategoria={handleAdicionarCategoria}
-        />
-      )}
+          <TabsContent value="viagem">
+            <ViagemForm
+              viagem={viagem}
+              setViagem={setViagem}
+              listaClientes={listaClientes}
+              listaMotoristas={listaMotoristas}
+              listaCaminhoes={listaCaminhoes}
+              onSalvar={onSalvarViagem}
+              onAdicionarCliente={handleAdicionarCliente}
+              onAdicionarMotorista={handleAdicionarMotorista}
+              onAdicionarCaminhao={handleAdicionarCaminhao}
+            />
+          </TabsContent>
 
-      <div className="card" style={{ borderTop: "4px solid #2563eb" }}>
-        <h2>📊 Relatório Gerencial</h2>
-        <FiltrosRelatorio filtro={filtro} setFiltro={setFiltro} onGerar={gerarRelatorio} />
-        <ResumoFinanceiro relatorio={relatorio} />
-        <TabelasRelatorio relatorio={relatorio} />
+          <TabsContent value="despesa">
+            <DespesaForm
+              despesa={despesa}
+              setDespesa={setDespesa}
+              listaCategorias={listaCategorias}
+              onSalvar={onSalvarDespesa}
+              onAdicionarCategoria={handleAdicionarCategoria}
+            />
+          </TabsContent>
+
+          <TabsContent value="dashboard">
+            <Dashboard
+              listaViagens={listaViagens}
+              listaDespesas={listaDespesas}
+              listaClientes={listaClientes}
+              listaMotoristas={listaMotoristas}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <DiarioViagens listaViagens={listaViagens} />
-
-      <Toast toast={toast} />
+      <Toaster richColors position="bottom-center" />
       <ModalQuickAdd key={modalKey} modal={modal} onClose={() => setModal(null)} />
     </div>
   );

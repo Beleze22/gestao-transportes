@@ -1,172 +1,154 @@
 import { useState } from "react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 export default function ViagemForm({
-  viagem,
-  setViagem,
-  listaClientes,
-  listaMotoristas,
-  listaCaminhoes,
-  onSalvar,
-  onAdicionarCliente,
-  onAdicionarMotorista,
-  onAdicionarCaminhao,
+  viagem, setViagem,
+  listaClientes, listaMotoristas, listaCaminhoes,
+  onSalvar, onAdicionarCliente, onAdicionarMotorista, onAdicionarCaminhao,
 }) {
   const [mostrarLogistica, setMostrarLogistica] = useState(false);
 
+  const set = (campo) => (val) => setViagem({ ...viagem, [campo]: val });
+
   return (
-    <div className="card">
-      <h2>Nova Viagem</h2>
-      <form onSubmit={onSalvar}>
-        <label>Empresa:</label>
-        <select
-          value={viagem.empresa}
-          onChange={(e) => setViagem({ ...viagem, empresa: e.target.value })}
-          required
-        >
-          <option value="">Selecione...</option>
-          <option value="Rohan">Rohan</option>
-          <option value="TransBeleze">TransBeleze</option>
-        </select>
-
-        <label>Data:</label>
-        <input
-          type="date"
-          value={viagem.data}
-          onChange={(e) => setViagem({ ...viagem, data: e.target.value })}
-          required
-        />
-
-        <label>Cliente:</label>
-        <div className="input-group">
-          <select
-            value={viagem.cliente_id}
-            onChange={(e) => setViagem({ ...viagem, cliente_id: e.target.value })}
-            required
-          >
-            <option value="">Selecione...</option>
-            {listaClientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn-add" onClick={onAdicionarCliente}>
-            +
-          </button>
-        </div>
-
-        <label>Motorista:</label>
-        <div className="input-group">
-          <select
-            value={viagem.motorista_id}
-            onChange={(e) => setViagem({ ...viagem, motorista_id: e.target.value })}
-            required
-          >
-            <option value="">Selecione...</option>
-            {listaMotoristas.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nome}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn-add" onClick={onAdicionarMotorista}>
-            +
-          </button>
-        </div>
-
-        <label>Caminhão:</label>
-        <div className="input-group">
-          <select
-            value={viagem.caminhao_id}
-            onChange={(e) => setViagem({ ...viagem, caminhao_id: e.target.value })}
-            required
-          >
-            <option value="">Selecione...</option>
-            {listaCaminhoes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.placa}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn-add" onClick={onAdicionarCaminhao}>
-            +
-          </button>
-        </div>
-
-        <label>Valores (R$):</label>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <input
-            type="number"
-            placeholder="Frete"
-            value={viagem.valorFrete}
-            onChange={(e) => setViagem({ ...viagem, valorFrete: e.target.value })}
-          />
-          <input
-            type="number"
-            placeholder="Pgto Mot."
-            value={viagem.valorMotorista}
-            onChange={(e) => setViagem({ ...viagem, valorMotorista: e.target.value })}
-          />
-        </div>
-
-        <button
-          type="button"
-          className="btn-toggle-logistica"
-          onClick={() => setMostrarLogistica((v) => !v)}
-        >
-          {mostrarLogistica ? "▲ Ocultar logística" : "▼ Logística (opcional)"}
-        </button>
-
-        {mostrarLogistica && (
-          <div className="logistica-section">
-            <label>Local de carregamento:</label>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <input
-                type="text"
-                placeholder="Origem"
-                value={viagem.localCarregamento}
-                onChange={(e) => setViagem({ ...viagem, localCarregamento: e.target.value })}
-                style={{ flex: 1 }}
-              />
-              <input
-                type="time"
-                value={viagem.horarioCarregamento}
-                onChange={(e) => setViagem({ ...viagem, horarioCarregamento: e.target.value })}
-                style={{ width: "110px", flex: "none" }}
-              />
-            </div>
-
-            <label>Local de descarregamento:</label>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <input
-                type="text"
-                placeholder="Destino"
-                value={viagem.localDescarregamento}
-                onChange={(e) => setViagem({ ...viagem, localDescarregamento: e.target.value })}
-                style={{ flex: 1 }}
-              />
-              <input
-                type="time"
-                value={viagem.horarioDescarregamento}
-                onChange={(e) => setViagem({ ...viagem, horarioDescarregamento: e.target.value })}
-                style={{ width: "110px", flex: "none" }}
-              />
-            </div>
-
-            <label>Observações:</label>
-            <textarea
-              placeholder="Informações adicionais..."
-              value={viagem.observacoes}
-              onChange={(e) => setViagem({ ...viagem, observacoes: e.target.value })}
-              rows={3}
-            />
+    <Card>
+      <CardHeader>
+        <CardTitle>Nova Viagem</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onSalvar} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Empresa</Label>
+            <Select value={viagem.empresa} onValueChange={set("empresa")}>
+              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Rohan">Rohan</SelectItem>
+                <SelectItem value="TransBeleze">TransBeleze</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        )}
 
-        <button type="submit" className="btn-save">
-          Salvar Viagem 🚛
-        </button>
-      </form>
-    </div>
+          <div className="space-y-1.5">
+            <Label>Data</Label>
+            <Input type="date" value={viagem.data} onChange={(e) => set("data")(e.target.value)} required />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Cliente</Label>
+            <div className="flex gap-2">
+              <Select value={viagem.cliente_id} onValueChange={set("cliente_id")}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {listaClientes.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" size="icon" onClick={onAdicionarCliente}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Motorista</Label>
+            <div className="flex gap-2">
+              <Select value={viagem.motorista_id} onValueChange={set("motorista_id")}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {listaMotoristas.map((m) => (
+                    <SelectItem key={m.id} value={String(m.id)}>{m.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" size="icon" onClick={onAdicionarMotorista}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Caminhão</Label>
+            <div className="flex gap-2">
+              <Select value={viagem.caminhao_id} onValueChange={set("caminhao_id")}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {listaCaminhoes.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.placa}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" size="icon" onClick={onAdicionarCaminhao}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Valores (R$)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Input type="number" placeholder="Frete" value={viagem.valorFrete}
+                onChange={(e) => set("valorFrete")(e.target.value)} />
+              <Input type="number" placeholder="Pgto Motorista" value={viagem.valorMotorista}
+                onChange={(e) => set("valorMotorista")(e.target.value)} />
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full border border-dashed text-muted-foreground"
+            onClick={() => setMostrarLogistica((v) => !v)}
+          >
+            {mostrarLogistica
+              ? <><ChevronUp className="h-4 w-4 mr-2" />Ocultar logística</>
+              : <><ChevronDown className="h-4 w-4 mr-2" />Logística (opcional)</>}
+          </Button>
+
+          {mostrarLogistica && (
+            <div className="space-y-4 rounded-lg border bg-muted/40 p-4">
+              <div className="space-y-1.5">
+                <Label>Carregamento</Label>
+                <div className="flex gap-2">
+                  <Input className="flex-1" placeholder="Local de origem"
+                    value={viagem.localCarregamento}
+                    onChange={(e) => set("localCarregamento")(e.target.value)} />
+                  <Input type="time" className="w-28 flex-none"
+                    value={viagem.horarioCarregamento}
+                    onChange={(e) => set("horarioCarregamento")(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Descarregamento</Label>
+                <div className="flex gap-2">
+                  <Input className="flex-1" placeholder="Local de destino"
+                    value={viagem.localDescarregamento}
+                    onChange={(e) => set("localDescarregamento")(e.target.value)} />
+                  <Input type="time" className="w-28 flex-none"
+                    value={viagem.horarioDescarregamento}
+                    onChange={(e) => set("horarioDescarregamento")(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Observações</Label>
+                <Textarea placeholder="Informações adicionais..." rows={3}
+                  value={viagem.observacoes}
+                  onChange={(e) => set("observacoes")(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full">Salvar Viagem 🚛</Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
