@@ -113,16 +113,21 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
     return true;
   }), [listaDespesas, empresa, inicio, fim]);
 
+  // Exclui canceladas de todos os cálculos financeiros
+  const viagensAtivas = useMemo(() =>
+    viagensFilt.filter((v) => v.status !== "cancelada"),
+    [viagensFilt]);
+
   const kpis = useMemo(() => {
-    const fat  = viagensFilt.reduce((s, v) => s + (v.valor_frete || 0), 0);
-    const mot  = viagensFilt.reduce((s, v) => s + (v.valor_motorista || 0), 0);
+    const fat  = viagensAtivas.reduce((s, v) => s + (v.valor_frete || 0), 0);
+    const mot  = viagensAtivas.reduce((s, v) => s + (v.valor_motorista || 0), 0);
     const desp = despesasFilt.reduce((s, d) => s + (d.valor || 0), 0);
     return { faturamento: fat, motoristas: mot, despesas: desp, lucro: fat - mot - desp };
-  }, [viagensFilt, despesasFilt]);
+  }, [viagensAtivas, despesasFilt]);
 
   const barData = useMemo(() => {
     const g = {};
-    viagensFilt.forEach((v) => {
+    viagensAtivas.forEach((v) => {
       const k = v.data.slice(0, 7);
       g[k] = { fat: (g[k]?.fat || 0) + (v.valor_frete || 0), desp: g[k]?.desp || 0 };
     });
@@ -132,8 +137,9 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
     });
     return Object.entries(g).sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => ({ mes: mesLabel(k), Faturamento: v.fat, Despesas: v.desp }));
-  }, [viagensFilt, despesasFilt]);
+  }, [viagensAtivas, despesasFilt]);
 
+  // Pizza usa viagensFilt (com canceladas) para mostrar distribuição real de status
   const pieData = useMemo(() => {
     const c = {};
     viagensFilt.forEach((v) => {
@@ -145,25 +151,25 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
 
   const topClientes = useMemo(() => {
     const m = {};
-    viagensFilt.forEach((v) => {
+    viagensAtivas.forEach((v) => {
       const n = v.clientes?.nome || "Não definido";
       if (!m[n]) m[n] = { nome: n, fat: 0, viagens: 0 };
       m[n].fat += v.valor_frete || 0;
       m[n].viagens++;
     });
     return Object.values(m).sort((a, b) => b.fat - a.fat).slice(0, 5);
-  }, [viagensFilt]);
+  }, [viagensAtivas]);
 
   const topMotoristas = useMemo(() => {
     const m = {};
-    viagensFilt.forEach((v) => {
+    viagensAtivas.forEach((v) => {
       const n = v.motoristas?.nome || "Não definido";
       if (!m[n]) m[n] = { nome: n, pago: 0, viagens: 0 };
       m[n].pago += v.valor_motorista || 0;
       m[n].viagens++;
     });
     return Object.values(m).sort((a, b) => b.viagens - a.viagens).slice(0, 5);
-  }, [viagensFilt]);
+  }, [viagensAtivas]);
 
   const porCategoria = useMemo(() => {
     const m = {};
@@ -182,14 +188,12 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
     [listaViagens]);
 
   const hoje = new Date();
-  const viagensDoMes = useMemo(() =>
-    listaViagens
-      .filter((v) => {
-        const d = new Date(v.data + "T12:00:00");
-        return d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear();
-      })
-      .sort((a, b) => a.data.localeCompare(b.data)),
-    [listaViagens]);
+  const viagensDoMes = listaViagens
+    .filter((v) => {
+      const d = new Date(v.data + "T12:00:00");
+      return d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear();
+    })
+    .sort((a, b) => a.data.localeCompare(b.data));
 
   return (
     <div className="space-y-5">
@@ -247,7 +251,7 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
 
       {/* ── KPIs ── */}
       <div className="grid grid-cols-2 gap-3">
-        <KpiCard title="Faturamento" value={kpis.faturamento} icon={DollarSign} sub={`${viagensFilt.length} viagens`} />
+        <KpiCard title="Faturamento" value={kpis.faturamento} icon={DollarSign} sub={`${viagensAtivas.length} viagens`} />
         <KpiCard title="Pgto Motoristas" value={kpis.motoristas} icon={Truck} positive={false} />
         <KpiCard title="Outras Despesas" value={kpis.despesas} icon={TrendingDown} positive={false} sub={`${despesasFilt.length} registros`} />
         <KpiCard title="Lucro Líquido" value={kpis.lucro} icon={TrendingUp} positive={kpis.lucro >= 0} />
