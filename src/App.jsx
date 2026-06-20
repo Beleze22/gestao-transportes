@@ -98,9 +98,22 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl px-4 py-6 pb-20">
-        <h1 className="mb-6 text-center text-2xl font-bold tracking-tight">
-          🚛 Gestão de Transportes
-        </h1>
+        <header className="mb-6 rounded-xl bg-brand-green px-6 py-4 flex items-center justify-center gap-4">
+          <img
+            src="/logo.png"
+            alt="Rohan Transportes"
+            className="h-14 w-14 object-contain flex-none"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+          <div>
+            <p className="text-brand-gold font-bold text-xl tracking-widest uppercase leading-tight">
+              Rohan Transportes
+            </p>
+            <p className="text-brand-gold/60 text-xs tracking-[0.3em] uppercase mt-0.5">
+              Sistema de Gestão
+            </p>
+          </div>
+        </header>
 
         <Tabs defaultValue="viagem">
           <TabsList className="grid w-full grid-cols-3 mb-6">
