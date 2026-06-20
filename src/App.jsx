@@ -134,7 +134,7 @@ function App() {
       <div className="mx-auto max-w-2xl px-4 py-6 pb-20">
         <header className="mb-6 rounded-xl bg-brand-green px-6 py-4 flex items-center justify-center gap-4">
           <img
-            src="/logo.jpeg"
+            src="/logo.png"
             alt="Rohan Transportes"
             className="h-14 w-14 object-contain flex-none"
             onError={(e) => {
