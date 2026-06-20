@@ -25,7 +25,9 @@
       "PowerShell(git diff*)",
       "PowerShell(git log*)",
       "PowerShell(railway *)",
-      "PowerShell(New-Item -ItemType Directory -Force *)"
+      "PowerShell(New-Item -ItemType Directory -Force *)",
+      "Bash(git checkout *)",
+      "Bash(git push *)"
     ]
   }
 }

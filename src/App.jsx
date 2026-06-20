@@ -10,12 +10,22 @@ import ModalQuickAdd from "@/components/ModalQuickAdd";
 function App() {
   const {
     loading,
-    viagem, setViagem,
-    despesa, setDespesa,
-    listaClientes, listaMotoristas, listaCaminhoes,
-    listaViagens, listaDespesas, listaCategorias,
-    handleSalvarViagem, handleSalvarDespesa,
-    adicionarCliente, adicionarMotorista, adicionarCaminhao, adicionarCategoria,
+    viagem,
+    setViagem,
+    despesa,
+    setDespesa,
+    listaClientes,
+    listaMotoristas,
+    listaCaminhoes,
+    listaViagens,
+    listaDespesas,
+    listaCategorias,
+    handleSalvarViagem,
+    handleSalvarDespesa,
+    adicionarCliente,
+    adicionarMotorista,
+    adicionarCaminhao,
+    adicionarCategoria,
   } = useTransporteData();
 
   const [modal, setModal] = useState(null);
@@ -49,18 +59,28 @@ function App() {
       title: "Novo Cliente",
       fields: [{ key: "nome", label: "Nome", placeholder: "Nome do cliente" }],
       onConfirm: async (v) => {
-        try { await adicionarCliente(v.nome); toast.success("Cliente adicionado!"); }
-        catch (err) { toast.error(err.message); }
+        try {
+          await adicionarCliente(v.nome);
+          toast.success("Cliente adicionado!");
+        } catch (err) {
+          toast.error(err.message);
+        }
       },
     });
 
   const handleAdicionarMotorista = () =>
     openModal({
       title: "Novo Motorista",
-      fields: [{ key: "nome", label: "Nome", placeholder: "Nome do motorista" }],
+      fields: [
+        { key: "nome", label: "Nome", placeholder: "Nome do motorista" },
+      ],
       onConfirm: async (v) => {
-        try { await adicionarMotorista(v.nome); toast.success("Motorista adicionado!"); }
-        catch (err) { toast.error(err.message); }
+        try {
+          await adicionarMotorista(v.nome);
+          toast.success("Motorista adicionado!");
+        } catch (err) {
+          toast.error(err.message);
+        }
       },
     });
 
@@ -72,18 +92,32 @@ function App() {
         { key: "modelo", label: "Modelo", placeholder: "Ex: Volvo FH" },
       ],
       onConfirm: async (v) => {
-        try { await adicionarCaminhao(v.placa, v.modelo); toast.success("Caminhão adicionado!"); }
-        catch (err) { toast.error(err.message); }
+        try {
+          await adicionarCaminhao(v.placa, v.modelo);
+          toast.success("Caminhão adicionado!");
+        } catch (err) {
+          toast.error(err.message);
+        }
       },
     });
 
   const handleAdicionarCategoria = () =>
     openModal({
       title: "Nova Categoria",
-      fields: [{ key: "nome", label: "Categoria", placeholder: "Ex: Combustível, Pedágio..." }],
+      fields: [
+        {
+          key: "nome",
+          label: "Categoria",
+          placeholder: "Ex: Combustível, Pedágio...",
+        },
+      ],
       onConfirm: async (v) => {
-        try { await adicionarCategoria(v.nome); toast.success("Categoria adicionada!"); }
-        catch (err) { toast.error(err.message); }
+        try {
+          await adicionarCategoria(v.nome);
+          toast.success("Categoria adicionada!");
+        } catch (err) {
+          toast.error(err.message);
+        }
       },
     });
 
@@ -100,10 +134,12 @@ function App() {
       <div className="mx-auto max-w-2xl px-4 py-6 pb-20">
         <header className="mb-6 rounded-xl bg-brand-green px-6 py-4 flex items-center justify-center gap-4">
           <img
-            src="/logo.png"
+            src="/logo.jpeg"
             alt="Rohan Transportes"
             className="h-14 w-14 object-contain flex-none"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
           <div>
             <p className="text-brand-gold font-bold text-xl tracking-widest uppercase leading-tight">
@@ -158,7 +194,11 @@ function App() {
       </div>
 
       <Toaster richColors position="bottom-center" />
-      <ModalQuickAdd key={modalKey} modal={modal} onClose={() => setModal(null)} />
+      <ModalQuickAdd
+        key={modalKey}
+        modal={modal}
+        onClose={() => setModal(null)}
+      />
     </div>
   );
 }
