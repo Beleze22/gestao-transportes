@@ -86,11 +86,12 @@ export async function marcarRealizadasPendentes() {
     .select("id");
   if (err1) throw err1;
 
-  // Viagens sem valores → realizada_pendente para cobrança
+  // Viagens sem valores → realizada_pendente para cobrança.
+  // Inclui confirmada_sem_valor — sem isso elas ficariam presas nesse status para sempre.
   const { data: pendentes, error: err2 } = await supabase
     .from("viagens")
     .update({ status: "realizada_pendente" })
-    .eq("status", "confirmada")
+    .in("status", ["confirmada", "confirmada_sem_valor"])
     .lt("data", hoje)
     .select("id");
   if (err2) throw err2;

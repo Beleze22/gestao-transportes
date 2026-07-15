@@ -92,12 +92,16 @@ export default function useTransporteData() {
     if (!viagem.empresa || !viagem.cliente_id || !viagem.motorista_id || !viagem.caminhao_id) {
       throw new Error("Preencha todos os campos obrigatórios.");
     }
+    // Espelha statusPorCompletude do agente — sem isso o default do banco ('rascunho')
+    // marcaria como incompleta uma viagem totalmente preenchida.
+    const temValores = !!viagem.valorFrete && !!viagem.valorMotorista;
     const { error } = await supabase.from("viagens").insert([{
       empresa: viagem.empresa,
       data: viagem.data,
       cliente_id: parseInt(viagem.cliente_id),
       motorista_id: parseInt(viagem.motorista_id),
       caminhao_id: parseInt(viagem.caminhao_id),
+      status: temValores ? "confirmada" : "confirmada_sem_valor",
       valor_frete: viagem.valorFrete ? parseFloat(viagem.valorFrete) : null,
       valor_motorista: viagem.valorMotorista ? parseFloat(viagem.valorMotorista) : null,
       local_carregamento: viagem.localCarregamento || null,

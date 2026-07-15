@@ -73,6 +73,7 @@ export async function gerarRelatorio({ empresa, data_inicio, data_fim } = {}) {
   let queryViagens = supabase
     .from("viagens")
     .select(`valor_frete, valor_motorista, empresa, data, clientes(nome), motoristas(nome)`)
+    .neq("status", "cancelada")
     .not("valor_frete", "is", null)
     .not("valor_motorista", "is", null);
   let queryDespesas = supabase

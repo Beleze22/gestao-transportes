@@ -16,6 +16,20 @@ const whitelist = (process.env.TELEGRAM_ALLOWED_IDS || "")
 
 const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || "";
 
+// Secret obrigatório para os endpoints /test — sem a env var eles ficam desabilitados,
+// evitando que qualquer pessoa com a URL pública injete comandos de escrita no agente.
+const testSecret = process.env.TEST_ENDPOINT_SECRET || "";
+
+function exigirTestSecret(req, res, next) {
+  if (!testSecret) {
+    return res.status(403).json({ erro: "endpoints de teste desabilitados (defina TEST_ENDPOINT_SECRET)" });
+  }
+  if (req.headers["x-test-secret"] !== testSecret) {
+    return res.status(403).json({ erro: "secret inválido" });
+  }
+  next();
+}
+
 app.get("/health", (_req, res) =>
   res.json({ ok: true, commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? "local" })
 );
@@ -29,18 +43,18 @@ app.post("/webhook/telegram", async (req, res) => {
   // Responde imediatamente — o processamento acontece de forma assíncrona.
   res.status(200).end();
 
+  const mensagem = extrairMensagemRecebida(req.body);
+  if (!mensagem) return;
+
+  const { chatId, audioFileId } = mensagem;
+  let { texto } = mensagem;
+
+  if (whitelist.length && !whitelist.includes(chatId)) {
+    console.log(`[webhook] mensagem ignorada — chat_id fora da whitelist: ${chatId}`);
+    return;
+  }
+
   try {
-    const mensagem = extrairMensagemRecebida(req.body);
-    if (!mensagem) return;
-
-    const { chatId, audioFileId } = mensagem;
-    let { texto } = mensagem;
-
-    if (whitelist.length && !whitelist.includes(chatId)) {
-      console.log(`[webhook] mensagem ignorada — chat_id fora da whitelist: ${chatId}`);
-      return;
-    }
-
     if (audioFileId) {
       try {
         texto = await transcreverAudio(audioFileId);
@@ -56,11 +70,20 @@ app.post("/webhook/telegram", async (req, res) => {
     await enviarMensagem(chatId, resposta);
   } catch (err) {
     console.error("[webhook] erro ao processar mensagem:", err);
+    // Avisa o usuário — sem isso ele fica no vácuo e pode achar que a mensagem foi processada.
+    try {
+      await enviarMensagem(
+        chatId,
+        "⚠️ Ocorreu um erro ao processar sua mensagem — nada foi gravado. Pode tentar novamente?",
+      );
+    } catch (errEnvio) {
+      console.error("[webhook] falha também ao enviar aviso de erro:", errEnvio);
+    }
   }
 });
 
 // Endpoint de teste: aciona o agente via HTTP em vez do Telegram.
-app.post("/test/mensagem", async (req, res) => {
+app.post("/test/mensagem", exigirTestSecret, async (req, res) => {
   const { chatId, texto } = req.body || {};
   if (!chatId || !texto) {
     return res.status(400).json({ erro: "informe chatId e texto" });
@@ -78,7 +101,7 @@ app.post("/test/mensagem", async (req, res) => {
   }
 });
 
-app.post("/test/digest-manha", async (_req, res) => {
+app.post("/test/digest-manha", exigirTestSecret, async (_req, res) => {
   try {
     const configs = await listarConfigNotificacoes();
     for (const config of configs) {
@@ -91,7 +114,7 @@ app.post("/test/digest-manha", async (_req, res) => {
   }
 });
 
-app.post("/test/digest-noite", async (_req, res) => {
+app.post("/test/digest-noite", exigirTestSecret, async (_req, res) => {
   try {
     const configs = await listarConfigNotificacoes();
     for (const config of configs) {

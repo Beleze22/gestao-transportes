@@ -3,6 +3,11 @@ import { supabase } from "../supabaseClient.js";
 export async function detectarConflitos({ data, motorista_id, caminhao_id, ignorar_id }) {
   if (!data || (!motorista_id && !caminhao_id)) return [];
 
+  // O banco retorna IDs como number, mas o modelo pode enviar string ("1").
+  // Sem normalizar, "1" === 1 é false e o conflito nunca seria detectado.
+  const motoristaId = motorista_id != null ? Number(motorista_id) : null;
+  const caminhaoId = caminhao_id != null ? Number(caminhao_id) : null;
+
   let query = supabase
     .from("viagens")
     .select("id, empresa, data, horario_carregamento, motorista_id, caminhao_id, motoristas(nome), caminhoes(placa)")
@@ -16,7 +21,7 @@ export async function detectarConflitos({ data, motorista_id, caminhao_id, ignor
 
   return candidatas.filter(
     (v) =>
-      (motorista_id && v.motorista_id === motorista_id) ||
-      (caminhao_id && v.caminhao_id === caminhao_id)
+      (motoristaId != null && v.motorista_id === motoristaId) ||
+      (caminhaoId != null && v.caminhao_id === caminhaoId)
   );
 }
