@@ -1,14 +1,47 @@
 const BASE = () => `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
-export async function enviarMensagem(chatId, texto) {
-  const resp = await fetch(`${BASE()}/sendMessage`, {
+// Limite oficial do Telegram é 4096 chars; margem para não cortar no limite exato.
+const MAX_CHARS_MENSAGEM = 4000;
+
+function dividirTexto(texto) {
+  if (texto.length <= MAX_CHARS_MENSAGEM) return [texto];
+  const partes = [];
+  let restante = texto;
+  while (restante.length > MAX_CHARS_MENSAGEM) {
+    // Prefere quebrar em fim de linha para não cortar frases no meio.
+    let corte = restante.lastIndexOf("\n", MAX_CHARS_MENSAGEM);
+    if (corte < MAX_CHARS_MENSAGEM / 2) corte = MAX_CHARS_MENSAGEM;
+    partes.push(restante.slice(0, corte));
+    restante = restante.slice(corte).replace(/^\n+/, "");
+  }
+  if (restante) partes.push(restante);
+  return partes;
+}
+
+async function enviarParte(chatId, texto) {
+  // Tenta com Markdown (renderiza os **negritos** do agente); se o parse falhar
+  // (caractere não escapado), reenvia como texto puro em vez de perder a mensagem.
+  let resp = await fetch(`${BASE()}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text: texto }),
+    body: JSON.stringify({ chat_id: chatId, text: texto, parse_mode: "Markdown" }),
   });
+  if (resp.status === 400) {
+    resp = await fetch(`${BASE()}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: texto }),
+    });
+  }
   if (!resp.ok) {
     const err = await resp.text();
     throw new Error(`Telegram sendMessage falhou (${resp.status}): ${err}`);
+  }
+}
+
+export async function enviarMensagem(chatId, texto) {
+  for (const parte of dividirTexto(texto)) {
+    await enviarParte(chatId, parte);
   }
 }
 

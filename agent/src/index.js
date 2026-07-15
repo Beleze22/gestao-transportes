@@ -20,6 +20,34 @@ const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || "";
 // evitando que qualquer pessoa com a URL pública injete comandos de escrita no agente.
 const testSecret = process.env.TEST_ENDPOINT_SECRET || "";
 
+// Fila por chat: mensagens do mesmo usuário processam em série, nunca em paralelo —
+// evita histórico intercalado e gravação dupla quando duas mensagens chegam juntas.
+const filasPorChat = new Map();
+
+function enfileirarPorChat(chatId, tarefa) {
+  const anterior = filasPorChat.get(chatId) ?? Promise.resolve();
+  const atual = anterior.then(tarefa, tarefa);
+  filasPorChat.set(chatId, atual);
+  atual.finally(() => {
+    if (filasPorChat.get(chatId) === atual) filasPorChat.delete(chatId);
+  });
+  return atual;
+}
+
+// Dedup de update_id — o Telegram pode reenviar o mesmo update (ex: timeout de rede).
+const MAX_UPDATES_VISTOS = 1000;
+const updatesVistos = new Set();
+
+function updateJaProcessado(updateId) {
+  if (updateId == null) return false;
+  if (updatesVistos.has(updateId)) return true;
+  updatesVistos.add(updateId);
+  if (updatesVistos.size > MAX_UPDATES_VISTOS) {
+    updatesVistos.delete(updatesVistos.values().next().value);
+  }
+  return false;
+}
+
 function exigirTestSecret(req, res, next) {
   if (!testSecret) {
     return res.status(403).json({ erro: "endpoints de teste desabilitados (defina TEST_ENDPOINT_SECRET)" });
@@ -43,6 +71,11 @@ app.post("/webhook/telegram", async (req, res) => {
   // Responde imediatamente — o processamento acontece de forma assíncrona.
   res.status(200).end();
 
+  if (updateJaProcessado(req.body?.update_id)) {
+    console.log(`[webhook] update duplicado ignorado: ${req.body.update_id}`);
+    return;
+  }
+
   const mensagem = extrairMensagemRecebida(req.body);
   if (!mensagem) return;
 
@@ -54,32 +87,34 @@ app.post("/webhook/telegram", async (req, res) => {
     return;
   }
 
-  try {
-    if (audioFileId) {
+  await enfileirarPorChat(chatId, async () => {
+    try {
+      if (audioFileId) {
+        try {
+          texto = await transcreverAudio(audioFileId);
+          console.log(`[webhook] áudio transcrito (${chatId}): ${texto}`);
+        } catch (err) {
+          console.error("[webhook] erro na transcrição:", err);
+          await enviarMensagem(chatId, "Não consegui entender o áudio. Pode mandar em texto?");
+          return;
+        }
+      }
+
+      const resposta = await processarMensagem(chatId, texto);
+      await enviarMensagem(chatId, resposta);
+    } catch (err) {
+      console.error("[webhook] erro ao processar mensagem:", err);
+      // Avisa o usuário — sem isso ele fica no vácuo e pode achar que a mensagem foi processada.
       try {
-        texto = await transcreverAudio(audioFileId);
-        console.log(`[webhook] áudio transcrito (${chatId}): ${texto}`);
-      } catch (err) {
-        console.error("[webhook] erro na transcrição:", err);
-        await enviarMensagem(chatId, "Não consegui entender o áudio. Pode mandar em texto?");
-        return;
+        await enviarMensagem(
+          chatId,
+          "⚠️ Ocorreu um erro ao processar sua mensagem — nada foi gravado. Pode tentar novamente?",
+        );
+      } catch (errEnvio) {
+        console.error("[webhook] falha também ao enviar aviso de erro:", errEnvio);
       }
     }
-
-    const resposta = await processarMensagem(chatId, texto);
-    await enviarMensagem(chatId, resposta);
-  } catch (err) {
-    console.error("[webhook] erro ao processar mensagem:", err);
-    // Avisa o usuário — sem isso ele fica no vácuo e pode achar que a mensagem foi processada.
-    try {
-      await enviarMensagem(
-        chatId,
-        "⚠️ Ocorreu um erro ao processar sua mensagem — nada foi gravado. Pode tentar novamente?",
-      );
-    } catch (errEnvio) {
-      console.error("[webhook] falha também ao enviar aviso de erro:", errEnvio);
-    }
-  }
+  });
 });
 
 // Endpoint de teste: aciona o agente via HTTP em vez do Telegram.

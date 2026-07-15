@@ -83,6 +83,7 @@ Diretrizes:
 - IMPORTANTE — categorias de despesa: o campo "categoria" de registrar_despesa exige o ID real cadastrado em categoriasdespesas — NUNCA chute ou invente esse ID (ex.: não assuma que "pedágio" é categoria 1). Antes de QUALQUER registrar_despesa, chame listar_categorias e procure uma categoria cujo nome corresponda ao que o usuário disse. Se não houver correspondência, pergunte ao usuário se deve cadastrar uma categoria nova (adicionar_categoria) com esse nome ou usar uma das existentes — só prossiga com registrar_despesa depois de ter um ID real confirmado.
 - "Possível frete" / dados incompletos → sempre use criar_viagem_rascunho, nunca recuse por falta de dados.
 - Despesas sem data → assuma a data de hoje (DATA ATUAL acima). Não pergunte a data — inclua-a no resumo de confirmação para que o usuário possa corrigir se necessário.
+- Mensagens de áudio chegam transcritas automaticamente e podem conter erros de transcrição (ex: "despreza" em vez de "despesa", "negro" em vez de "nego"). Interprete pelo contexto e normalize erros óbvios — em especial nomes de motoristas/clientes: se a palavra transcrita for parecida com um nome cadastrado, use o nome do cadastro. Mostre a versão normalizada no resumo de confirmação para o usuário validar.
 
 Consultas de viagens — REGRA CRÍTICA:
 - Quando o usuário pedir viagens de um período (hoje, semana, mês etc.) sem especificar empresa, chame consultar_viagens UMA vez SEM o filtro de empresa para retornar ambas as empresas juntas. NUNCA assuma que uma empresa "não tem viagens" sem ter chamado a ferramenta e recebido o resultado dela.
@@ -205,10 +206,14 @@ export async function processarMensagem(telefone, texto) {
   let atingiuLimite = false;
   let escreveuNoTurno = false; // [FIX #8] alguma ferramenta de escrita executou com sucesso neste turno
   let guardRetries = 0;
+  // Gravações reais do turno (nome #id) — anexadas ao histórico para que o modelo
+  // veja, nas conversas futuras, que confirmações verdadeiras vêm acompanhadas de
+  // ferramentas executadas (sem isso o histórico ensina que texto sozinho grava).
+  const escritasExecutadas = [];
 
   for (let iteracao = 0; iteracao < MAX_ITERACOES; iteracao++) {
     const resposta = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
       max_tokens: 1500,
       temperature: 0, // [FIX #4]
       system: systemPrompt, // [FIX #3]
@@ -295,8 +300,19 @@ export async function processarMensagem(telefone, texto) {
     }
 
     // [FIX #8] Chegando aqui, nenhuma escrita falhou — se houve escrita, marca o turno.
-    if (blocosFerramenta.some((b) => isFerramentaEscrita(b.name))) {
+    for (const bloco of blocosFerramenta) {
+      if (!isFerramentaEscrita(bloco.name)) continue;
       escreveuNoTurno = true;
+      const resultado = resultadosFerramentas.find((r) => r.tool_use_id === bloco.id);
+      let idRegistro;
+      try {
+        idRegistro = JSON.parse(resultado?.content)?.id;
+      } catch {
+        // resultado sem JSON parseável — registra só o nome
+      }
+      escritasExecutadas.push(
+        idRegistro != null ? `${bloco.name} #${idRegistro}` : bloco.name,
+      );
     }
 
     mensagens = [
@@ -320,7 +336,12 @@ export async function processarMensagem(telefone, texto) {
       "Desculpe, não consegui concluir essa solicitação agora. Pode tentar reformular?";
   }
 
-  await registrarMensagem(telefone, "assistant", respostaFinal);
+  // O marcador vai só para o histórico (não para o usuário): nas próximas conversas
+  // o modelo vê que confirmações reais têm gravações associadas.
+  const marcadorEscritas = escritasExecutadas.length
+    ? `\n\n[registro do sistema: gravações executadas neste turno → ${escritasExecutadas.join(", ")}]`
+    : "";
+  await registrarMensagem(telefone, "assistant", respostaFinal + marcadorEscritas);
   return respostaFinal;
 }
 

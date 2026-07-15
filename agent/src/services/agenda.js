@@ -1,4 +1,5 @@
 import { supabase } from "../supabaseClient.js";
+import { hojeISO } from "../datas.js";
 
 const SELECT_DIGEST = `
   id, empresa, data, status, valor_frete, valor_motorista,
@@ -6,12 +7,6 @@ const SELECT_DIGEST = `
   horario_carregamento, horario_descarregamento,
   clientes(nome), motoristas(nome), caminhoes(placa)
 `;
-
-function hojeISO(offsetDias = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDias);
-  return d.toISOString().slice(0, 10);
-}
 
 export async function viagensDoDia(empresa) {
   let query = supabase

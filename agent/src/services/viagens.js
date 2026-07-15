@@ -1,4 +1,5 @@
 import { supabase } from "../supabaseClient.js";
+import { hojeISO } from "../datas.js";
 
 const SELECT_COMPLETO = `
   id, empresa, data, status, valor_frete, valor_motorista,
@@ -73,7 +74,7 @@ export async function consultarViagens(filtros = {}) {
 }
 
 export async function marcarRealizadasPendentes() {
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO();
 
   // Viagens com valores definidos → concluida direto
   const { data: concluidas, error: err1 } = await supabase
