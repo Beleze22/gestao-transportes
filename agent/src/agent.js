@@ -78,6 +78,7 @@ Diretrizes:
   Exceção: se os dados foram enviados incompletos e você precisou perguntar algo (empresa, data, motorista etc.), a resposta do usuário a essa pergunta NÃO é confirmação de gravação — mostre o resumo completo e peça confirmação explícita antes de gravar.
 
 - REGRA CRÍTICA — FERRAMENTA OBRIGATÓRIA: você só tem efeito no mundo real através das ferramentas — nada acontece "automaticamente" e você não tem memória de ações fora delas. Por isso, NUNCA diga que algo foi "registrado", "cadastrado", "salvo", "atualizado", "corrigido" etc. sem ter chamado a ferramenta de escrita correspondente NESTA mesma resposta e recebido o resultado de sucesso dela — mesmo que o pedido pareça simples, repetitivo ou idêntico a algo feito antes na conversa. Isso se aplica inclusive quando o usuário responde "sim", "pode", "confirma" a um resumo que você apresentou: essa confirmação não executa nada sozinha — você ainda precisa chamar a ferramenta. Confirmar uma ação que não ocorreu cria dados financeiros incorretos.
+- PROVA DE GRAVAÇÃO: toda confirmação de gravação DEVE citar o ID retornado pela ferramenta neste turno (ex: "✅ Viagem #415 cadastrada!", "✅ Despesa #66 registrada!"). Se você não recebeu um ID de uma ferramenta de escrita NESTE turno, é porque nada foi gravado — não afirme o contrário.
 - Quando o usuário mencionar nomes (cliente, motorista, empresa, categoria), busque o ID correspondente nas listas (listar_clientes, listar_motoristas, etc) antes de criar/atualizar registros. Se não encontrar, pergunte se deve cadastrar um novo.
 - IMPORTANTE — categorias de despesa: o campo "categoria" de registrar_despesa exige o ID real cadastrado em categoriasdespesas — NUNCA chute ou invente esse ID (ex.: não assuma que "pedágio" é categoria 1). Antes de QUALQUER registrar_despesa, chame listar_categorias e procure uma categoria cujo nome corresponda ao que o usuário disse. Se não houver correspondência, pergunte ao usuário se deve cadastrar uma categoria nova (adicionar_categoria) com esse nome ou usar uma das existentes — só prossiga com registrar_despesa depois de ter um ID real confirmado.
 - "Possível frete" / dados incompletos → sempre use criar_viagem_rascunho, nunca recuse por falta de dados.
@@ -156,6 +157,27 @@ async function executarFerramentasSequencial(blocosFerramenta) {
 
 const MAX_ITERACOES = 8;
 
+// [FIX #8] Guard anti-alucinação de confirmação: se a resposta final afirma
+// que algo foi gravado mas NENHUMA ferramenta de escrita rodou neste turno,
+// a resposta é bloqueada e devolvida ao modelo para que ele chame a ferramenta
+// de verdade (ou reformule, se era só uma consulta). Determinístico — não
+// depende do modelo obedecer o prompt.
+const MAX_GUARD_RETRIES = 1;
+
+// Lookbehinds excluem negações comuns ("não cadastrada", "nada foi gravado"),
+// que são respostas legítimas quando o usuário recusa uma gravação.
+const PADRAO_CONFIRMACAO_ESCRITA =
+  /✅|(?<!não )(?<!não foi )(?<!nada foi )(?:cadastrad|registrad|salv|gravad|atualizad|adicionad)[oa]/i;
+
+const AVISO_GUARD =
+  "[VERIFICAÇÃO AUTOMÁTICA DO SISTEMA — o usuário NÃO vê esta mensagem] " +
+  "Sua resposta afirma que algo foi gravado/cadastrado/registrado, porém NENHUMA " +
+  "ferramenta de escrita foi executada neste turno — nada foi salvo no banco. " +
+  "Se o usuário confirmou uma gravação, chame AGORA a ferramenta de escrita " +
+  "apropriada e só então confirme, citando o ID retornado por ela. " +
+  "Se sua resposta se referia a registros já existentes (consulta), reformule-a " +
+  "deixando claro que nenhuma gravação nova foi feita agora.";
+
 export async function processarMensagem(telefone, texto) {
   // [FIX #6] Valida entrada antes de qualquer I/O.
   const erroValidacao = validarEntrada(texto);
@@ -181,6 +203,8 @@ export async function processarMensagem(telefone, texto) {
   let mensagens = [...historicoTruncado];
   let respostaFinal = "";
   let atingiuLimite = false;
+  let escreveuNoTurno = false; // [FIX #8] alguma ferramenta de escrita executou com sucesso neste turno
+  let guardRetries = 0;
 
   for (let iteracao = 0; iteracao < MAX_ITERACOES; iteracao++) {
     const resposta = await anthropic.messages.create({
@@ -210,7 +234,26 @@ export async function processarMensagem(telefone, texto) {
         .join(", ")}]`,
     );
 
-    if (resposta.stop_reason !== "tool_use") break;
+    if (resposta.stop_reason !== "tool_use") {
+      // [FIX #8] Bloqueia confirmação de gravação sem ferramenta de escrita.
+      if (
+        !escreveuNoTurno &&
+        guardRetries < MAX_GUARD_RETRIES &&
+        PADRAO_CONFIRMACAO_ESCRITA.test(respostaFinal)
+      ) {
+        guardRetries++;
+        console.warn(
+          `[agent] GUARD: resposta afirma gravação sem ferramenta de escrita neste turno — reinjetando (tentativa ${guardRetries})`,
+        );
+        mensagens = [
+          ...mensagens,
+          { role: "assistant", content: resposta.content },
+          { role: "user", content: AVISO_GUARD },
+        ];
+        continue;
+      }
+      break;
+    }
 
     // [FIX #2] Detecta se chegou ao limite de iterações ainda em tool_use.
     if (iteracao === MAX_ITERACOES - 1) {
@@ -249,6 +292,11 @@ export async function processarMensagem(telefone, texto) {
         `Nada foi registrado. Por favor, tente novamente ou verifique com o suporte.`;
       await registrarMensagem(telefone, "assistant", respostaFinal);
       return respostaFinal;
+    }
+
+    // [FIX #8] Chegando aqui, nenhuma escrita falhou — se houve escrita, marca o turno.
+    if (blocosFerramenta.some((b) => isFerramentaEscrita(b.name))) {
+      escreveuNoTurno = true;
     }
 
     mensagens = [
