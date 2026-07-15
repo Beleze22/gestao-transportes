@@ -1,40 +1,41 @@
 # Melhorias Futuras
 
+## Segurança
+
+- [ ] **RLS / autenticação no Supabase** — o app web usa a chave `anon` sem login e as tabelas `viagens`/`despesas` estão com acesso aberto: qualquer pessoa com a URL do Netlify pode ler e alterar os dados (que são reais, ainda que o projeto seja de aprendizagem). Decisão de jul/2026: aceitar o risco por enquanto. Quando implementar: Supabase Auth (login simples) + políticas RLS por tabela. A tabela `conversas` já está protegida.
+- [x] **Endpoints `/test` com secret** — exigem header `x-test-secret` (env `TEST_ENDPOINT_SECRET` no Railway); desabilitados sem a env var.
+
 ## Infraestrutura / DevOps
 
-- [ ] **Dependabot** — ativar no GitHub para receber PRs automáticos de atualização de dependências semanalmente. Arquivo a criar: `.github/dependabot.yml` (ver conversa de jun/2026 para o conteúdo exato). Previne o problema do `node-fetch` / SDK desatualizado que quebrou o serviço em jun/2026.
-- [ ] **Remover serviço `evolution-api`** do Railway — não é mais usado desde a migração para Telegram.
-- [ ] **Trocar `npm install` por `npm ci`** no Dockerfile do agente — garante builds reproduzíveis a partir do lockfile, sem risco de instalar versões diferentes a cada deploy.
+- [ ] **Dependabot** — ativar no GitHub para receber PRs automáticos de atualização de dependências semanalmente. Arquivo a criar: `.github/dependabot.yml`. Previne o problema do `node-fetch` / SDK desatualizado que quebrou o serviço em jun/2026.
+- [ ] **Remover serviço `evolution-api`** do Railway — não é mais usado desde a migração para Telegram (o código `whatsapp.js` + axios já foi removido do repo em jul/2026).
+- [ ] **Trocar `npm install` por `npm ci`** no Dockerfile do agente — garante builds reproduzíveis a partir do lockfile.
+- [ ] **ESLint na pasta `agent/`** — o `eslint.config.js` aplica globals de browser ao código Node do agente (acusa `process is not defined`). Adicionar bloco com `globals: { ...globals.node }` para `agent/**`.
+- [ ] **Ambiente de staging** — branch `dev` + serviço Railway de staging + projeto Supabase separado + bot Telegram de teste (discutido em jun/2026, adiado).
 
-## Agente IA — Melhorias de comportamento (regressão jun/2026)
+## Agente IA
 
-Estas melhorias estavam implementadas e funcionando, mas foram perdidas durante rollbacks de emergência. Reaplicar sobre o estado atual estável:
+Aplicadas e em produção (jul/2026):
 
-- [ ] **FIX #1** — Execução sequencial de ferramentas (`executarFerramentasSequencial`) em vez de `Promise.all`, evita race conditions em escritas encadeadas.
-- [ ] **FIX #2** — Flag `atingiuLimite` com mensagem explícita ao usuário quando o loop atinge `MAX_ITERACOES`.
-- [ ] **FIX #3** — System prompt montado uma única vez antes do loop (não a cada iteração).
-- [ ] **FIX #4** — `temperature: 0` para máximo determinismo em agente financeiro.
-- [ ] **FIX #5** — `truncarHistorico()` com limite de tokens estimados para evitar context overflow.
-- [ ] **FIX #6** — `validarEntrada()` rejeita mensagens vazias ou muito longas antes de qualquer I/O.
-- [ ] **FIX #7** — Interrompe o loop e avisa o usuário se uma ferramenta de escrita retornar erro.
-- [ ] **Confirmação antes de gravar** — antes de chamar qualquer ferramenta de escrita, mostrar resumo completo e pedir "Confirma?" ao usuário. Só gravar após confirmação explícita.
-- [ ] **Regra DATA ATUAL** — injetar data atual no system prompt com diretiva explícita para nunca inferir "hoje" do histórico de conversa.
-- [ ] **Regras de consulta** — ao consultar viagens sem especificar empresa, buscar ambas sem filtro; ao ser questionado sobre resultado, sempre re-consultar antes de responder.
+- [x] **FIX #1–#7** — execução sequencial de tools, aviso de limite de iterações, system prompt único, `temperature: 0`, truncagem de histórico, validação de entrada, interrupção em erro de escrita.
+- [x] **FIX #8 — guard anti-alucinação** — bloqueia resposta que afirma gravação sem ferramenta de escrita executada no turno; regra "prova de gravação" exige citar o ID retornado.
+- [x] **Confirmação antes de gravar** + **regra DATA ATUAL com ISO** + **regras de re-consulta**.
+- [x] **Histórico com marcador de gravações** — `[registro do sistema: gravações executadas...]` anexado às respostas no histórico.
+- [x] **Lock de concorrência por chat + dedup de `update_id`**.
+- [x] **Timezone `America/Sao_Paulo`** em `hojeISO()` (`datas.js`).
+- [x] **Telegram: Markdown com fallback + divisão de mensagens > 4096 chars**.
+- [x] **Modelo via env var** (`ANTHROPIC_MODEL`).
+- [x] **Normalização de erros de transcrição** no prompt (ex: "negro" → "nego").
+- [x] **Transcrição de áudio (Groq Whisper)** — `whisper-large-v3-turbo` via `telegram.js`.
+- [x] **Auditoria diária** (23h) — detecta confirmações suspeitas por tempo de resposta.
 
-## Histórico e Auditoria
+Pendentes:
 
-- [ ] **Histórico completo para auditoria** — armazenar todas as mensagens na tabela `conversas` sem deletar, mas enviar apenas as últimas 20 ao Claude. Requer correção no `history.js` (order desc + limit + reverse).
-- [ ] **Timezone em `hojeISO()`** — `agenda.js` usa `toISOString()` (UTC) para filtrar datas, o que pode retornar a data errada após 21h (horário de Brasília). Corrigir para usar `America/Sao_Paulo`.
+- [ ] **Contexto de memória curto** — o agente vê só as últimas 20 mensagens (`LIMITE_CONTEXTO` em `history.js`); o limite de 80k tokens nunca é atingido. Avaliar aumentar para 40–60 mensagens.
+- [ ] **`gerar_relatorio` exige frete E pgto motorista não nulos** — viagem com frete definido mas pagamento pendente fica fora do faturamento. Validar se é o comportamento desejado.
 
-## Digest / Notificações
+## Dados
 
-- [ ] **Formato inline do digest** — linha de viagem no formato `Empresa | Cliente | Motorista | Veículo | local+hora carregamento | local+hora descarregamento`.
-- [ ] **`marcarRealizadasPendentes`** — separar viagens com valores (→ `concluida`) das sem valores (→ `realizada_pendente`). Versão atual move todas para `realizada_pendente` independente de ter valores.
-- [ ] **Filtro de segurança em `viagensComValorPendente`** — adicionar `.or("valor_frete.is.null,valor_motorista.is.null")` para evitar falsos positivos.
-- [ ] **Endpoints de teste** — `POST /test/digest-manha` e `POST /test/digest-noite` para acionar digests manualmente sem esperar o scheduler.
-
-## Funcionalidades Novas
-
-- [ ] **Transcrição de áudio (Groq Whisper)** — implementar `transcricao.js` com `whisper-large-v3-turbo`, tratar `message.voice` no webhook do Telegram. Já foi implementado e validado tecnicamente; estava funcionando a transcrição mas bloqueado pelo bug do SDK (agora resolvido).
 - [ ] **MARCELO no banco** — `caminhoes` id=7 tem `placa="MARCELO"` (nome de pessoa, não placa). Corrigir com a placa real quando disponível.
 - [ ] **Novos usuários** — quando os números 11 965055544 e 11 912516744 enviarem a primeira mensagem, adicionar os chat_ids gerados ao `TELEGRAM_ALLOWED_IDS` no Railway.
+- [x] **Viagem SUNSHINE 10/07 restaurada** — id 420, inserida manualmente após alucinação de confirmação do agente (caso que motivou o FIX #8).
