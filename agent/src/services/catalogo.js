@@ -1,4 +1,5 @@
 import { supabase } from "../supabaseClient.js";
+import { ReferenciaInvalidaError } from "../erros.js";
 
 async function listar(tabela, colunas = "*") {
   const { data, error } = await supabase.from(tabela).select(colunas);
@@ -31,6 +32,12 @@ export async function listarMotoristas() {
 }
 
 export async function registrarApelidoMotorista(apelido, motorista_id) {
+  const motoristas = await listar("motoristas");
+  if (!motoristas.some((m) => m.id === Number(motorista_id))) {
+    throw new ReferenciaInvalidaError(
+      `motorista_id=${motorista_id} não existe. Motoristas cadastrados: ${motoristas.map((m) => `${m.nome}(#${m.id})`).join(", ")}`,
+    );
+  }
   const { data, error } = await supabase
     .from("motoristas_apelidos")
     .upsert({ apelido, motorista_id }, { onConflict: "apelido" })
@@ -48,6 +55,12 @@ export const adicionarCategoria = (categoria) =>
   inserirRetornando("categoriasdespesas", { categoria });
 
 export async function registrarDespesa({ empresa, data, categoria, descricao, valor }) {
+  const categorias = await listarCategorias();
+  if (!categorias.some((c) => c.id === Number(categoria))) {
+    throw new ReferenciaInvalidaError(
+      `categoria=${categoria} não existe. Categorias cadastradas: ${categorias.map((c) => `${c.categoria}(#${c.id})`).join(", ")}`,
+    );
+  }
   const { data: registro, error } = await supabase
     .from("despesas")
     .insert({ empresa, data, categoria, descricao, valor })

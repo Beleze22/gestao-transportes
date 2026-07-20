@@ -1,5 +1,7 @@
 import { supabase } from "../supabaseClient.js";
 import { hojeISO } from "../datas.js";
+import { listarClientes, listarMotoristas, listarCaminhoes } from "./catalogo.js";
+import { ReferenciaInvalidaError } from "../erros.js";
 
 const SELECT_COMPLETO = `
   id, empresa, data, status, valor_frete, valor_motorista,
@@ -17,7 +19,41 @@ function statusPorCompletude(v) {
   return "confirmada";
 }
 
+// Confere que os IDs enviados pelo modelo existem de fato — sem isso, um ID
+// inventado que por acaso coincide com um registro real (ex: motorista errado)
+// seria gravado silenciosamente, já que o Postgres só rejeita IDs inexistentes.
+// A mensagem de erro já traz a lista de opções válidas (com apelidos, quando
+// houver) para o modelo se corrigir sem precisar de uma chamada extra.
+async function validarReferencias({ cliente_id, motorista_id, caminhao_id }) {
+  if (cliente_id == null && motorista_id == null && caminhao_id == null) return;
+
+  const [clientes, motoristas, caminhoes] = await Promise.all([
+    listarClientes(),
+    listarMotoristas(),
+    listarCaminhoes(),
+  ]);
+
+  const problemas = [];
+  if (cliente_id != null && !clientes.some((c) => c.id === Number(cliente_id))) {
+    problemas.push(
+      `cliente_id=${cliente_id} não existe. Clientes cadastrados: ${clientes.map((c) => `${c.nome}(#${c.id})`).join(", ")}`,
+    );
+  }
+  if (motorista_id != null && !motoristas.some((m) => m.id === Number(motorista_id))) {
+    problemas.push(
+      `motorista_id=${motorista_id} não existe. Motoristas cadastrados: ${motoristas.map((m) => `${m.nome}${m.apelidos?.length ? ` (apelido: ${m.apelidos.join(", ")})` : ""}(#${m.id})`).join(", ")}`,
+    );
+  }
+  if (caminhao_id != null && !caminhoes.some((c) => c.id === Number(caminhao_id))) {
+    problemas.push(
+      `caminhao_id=${caminhao_id} não existe. Caminhões cadastrados: ${caminhoes.map((c) => `${c.placa}(#${c.id})`).join(", ")}`,
+    );
+  }
+  if (problemas.length) throw new ReferenciaInvalidaError(problemas.join(" | "));
+}
+
 export async function criarViagemRascunho(dados) {
+  await validarReferencias(dados);
   const status = statusPorCompletude(dados);
   const { data, error } = await supabase
     .from("viagens")
@@ -29,6 +65,7 @@ export async function criarViagemRascunho(dados) {
 }
 
 export async function atualizarViagem(id, campos) {
+  await validarReferencias(campos);
   const { data: atual, error: errAtual } = await supabase
     .from("viagens")
     .select("*")

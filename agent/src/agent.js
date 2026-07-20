@@ -132,6 +132,7 @@ function formatarResultadoFerramenta(resultado) {
 // O comportamento externo é idêntico — apenas garante ordem de execução.
 async function executarFerramentasSequencial(blocosFerramenta) {
   const resultados = [];
+  const recuperaveis = new Set();
   for (const bloco of blocosFerramenta) {
     try {
       const resultado = await executar(bloco.name, bloco.input);
@@ -151,9 +152,52 @@ async function executarFerramentasSequencial(blocosFerramenta) {
         content: `Erro ao executar ${bloco.name}: ${err.message}`,
         is_error: true,
       });
+      // [FIX #9] Erros de referência inválida (ID que não existe) são recuperáveis:
+      // a mensagem já lista as opções válidas, então o loop pode continuar e deixar
+      // o modelo se corrigir sozinho em vez de abortar a conversa.
+      if (err.recuperavel === true) recuperaveis.add(bloco.id);
     }
   }
-  return resultados;
+  return { resultados, recuperaveis };
+}
+
+function formatarDataBR(iso) {
+  if (!iso) return "—";
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
+function formatarReal(v) {
+  return v != null ? `R$ ${Number(v).toFixed(2).replace(".", ",")}` : "—";
+}
+
+// [FIX #9] Conferência gerada pelo CÓDIGO a partir do que a ferramenta realmente
+// retornou do banco (nomes via join), nunca do texto livre do modelo. Mesmo que o
+// modelo grave um ID existente porém errado (ex: motorista certo por coincidência
+// aponta para outra pessoa), esta linha sempre reflete a verdade do banco — o
+// usuário consegue flagrar o erro na própria mensagem de confirmação.
+function formatarConferencia(nome, r) {
+  if (!r) return null;
+  if (nome === "criar_viagem_rascunho" || nome === "atualizar_viagem") {
+    const cliente = r.clientes?.nome ?? "não definido";
+    const motorista = r.motoristas?.nome ?? "não definido";
+    const caminhao = r.caminhoes?.placa ?? "não definido";
+    return (
+      `Viagem #${r.id} — ${r.empresa ?? "empresa a definir"}, ${formatarDataBR(r.data)}\n` +
+      `Cliente: ${cliente}${r.cliente_id != null ? ` (#${r.cliente_id})` : ""} | ` +
+      `Motorista: ${motorista}${r.motorista_id != null ? ` (#${r.motorista_id})` : ""} | ` +
+      `Caminhão: ${caminhao}${r.caminhao_id != null ? ` (#${r.caminhao_id})` : ""}\n` +
+      `Frete: ${formatarReal(r.valor_frete)} | Motorista: ${formatarReal(r.valor_motorista)}`
+    );
+  }
+  if (nome === "registrar_despesa") {
+    const categoria = r.categoriasdespesas?.categoria ?? "não definida";
+    return (
+      `Despesa #${r.id} — ${r.empresa}, ${formatarDataBR(r.data)}\n` +
+      `Categoria: ${categoria} | Valor: ${formatarReal(r.valor)}`
+    );
+  }
+  return null;
 }
 
 const MAX_ITERACOES = 8;
@@ -210,6 +254,8 @@ export async function processarMensagem(telefone, texto) {
   // veja, nas conversas futuras, que confirmações verdadeiras vêm acompanhadas de
   // ferramentas executadas (sem isso o histórico ensina que texto sozinho grava).
   const escritasExecutadas = [];
+  // [FIX #9] Linhas de conferência (geradas pelo código) de cada escrita bem-sucedida.
+  const conferencias = [];
 
   for (let iteracao = 0; iteracao < MAX_ITERACOES; iteracao++) {
     const resposta = await anthropic.messages.create({
@@ -272,11 +318,12 @@ export async function processarMensagem(telefone, texto) {
     ];
 
     // [FIX #1] Execução sequencial em vez de Promise.all.
-    const resultadosFerramentas =
+    const { resultados: resultadosFerramentas, recuperaveis } =
       await executarFerramentasSequencial(blocosFerramenta);
 
-    // [FIX #7] Se alguma ferramenta de escrita retornou erro, interrompe o loop
-    // e avisa o usuário — evita que o modelo confirme uma operação que falhou.
+    // [FIX #7] Se alguma ferramenta de escrita retornou erro NÃO recuperável,
+    // interrompe o loop e avisa o usuário — evita que o modelo confirme uma
+    // operação que falhou de forma irrecuperável (ex: banco fora do ar).
     const erroEscrita = resultadosFerramentas.find(
       (r) =>
         r.is_error &&
@@ -285,7 +332,7 @@ export async function processarMensagem(telefone, texto) {
         ),
     );
 
-    if (erroEscrita) {
+    if (erroEscrita && !recuperaveis.has(erroEscrita.tool_use_id)) {
       const nomeBloco = blocosFerramenta.find(
         (b) => b.id === erroEscrita.tool_use_id,
       )?.name;
@@ -295,24 +342,39 @@ export async function processarMensagem(telefone, texto) {
       respostaFinal =
         `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}). ` +
         `Nada foi registrado. Por favor, tente novamente ou verifique com o suporte.`;
+      if (conferencias.length) {
+        respostaFinal += `\n\n📋 Conferência automática (gravado no banco):\n${conferencias.join("\n\n")}`;
+      }
       await registrarMensagem(telefone, "assistant", respostaFinal);
       return respostaFinal;
     }
 
-    // [FIX #8] Chegando aqui, nenhuma escrita falhou — se houve escrita, marca o turno.
+    if (erroEscrita) {
+      // [FIX #9] Erro recuperável (ID inexistente) — o tool_result já contém a lista
+      // de opções válidas. O loop continua e o modelo tem a chance de se corrigir.
+      console.warn(
+        `[agent] erro recuperável em ferramenta de escrita — devolvendo ao modelo para autocorreção: ${erroEscrita.content}`,
+      );
+    }
+
+    // [FIX #8/#9] Marca o turno e monta a conferência só para blocos que realmente
+    // gravaram — um erro recuperável no mesmo lote não conta como sucesso.
     for (const bloco of blocosFerramenta) {
       if (!isFerramentaEscrita(bloco.name)) continue;
-      escreveuNoTurno = true;
       const resultado = resultadosFerramentas.find((r) => r.tool_use_id === bloco.id);
-      let idRegistro;
+      if (resultado?.is_error) continue;
+      escreveuNoTurno = true;
+      let parsed;
       try {
-        idRegistro = JSON.parse(resultado?.content)?.id;
+        parsed = JSON.parse(resultado?.content);
       } catch {
         // resultado sem JSON parseável — registra só o nome
       }
       escritasExecutadas.push(
-        idRegistro != null ? `${bloco.name} #${idRegistro}` : bloco.name,
+        parsed?.id != null ? `${bloco.name} #${parsed.id}` : bloco.name,
       );
+      const linha = formatarConferencia(bloco.name, parsed);
+      if (linha) conferencias.push(linha);
     }
 
     mensagens = [
@@ -334,6 +396,11 @@ export async function processarMensagem(telefone, texto) {
   if (!respostaFinal) {
     respostaFinal =
       "Desculpe, não consegui concluir essa solicitação agora. Pode tentar reformular?";
+  }
+
+  // [FIX #9] Conferência automática — sempre pelo código, nunca pelo texto do modelo.
+  if (conferencias.length) {
+    respostaFinal += `\n\n📋 Conferência automática (gravado no banco):\n${conferencias.join("\n\n")}`;
   }
 
   // O marcador vai só para o histórico (não para o usuário): nas próximas conversas
