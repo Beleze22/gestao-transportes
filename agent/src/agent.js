@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { definicoes, executar } from "./tools.js";
 import { buscarHistorico, registrarMensagem } from "./services/history.js";
+import * as catalogo from "./services/catalogo.js";
+import { ReferenciaInvalidaError } from "./erros.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -127,14 +129,118 @@ function formatarResultadoFerramenta(resultado) {
   return JSON.stringify(resultado, null, 2);
 }
 
+function normalizar(s) {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // remove acentos
+    .trim()
+    .toLowerCase();
+}
+
+// [FIX #10] Rótulos usados pelo próprio prompt no resumo de confirmação (ver
+// SYSTEM_PROMPT_BASE) — "Cliente: **NOME**", "Motorista: **NOME**", etc.
+// Usados para extrair o nome que o MODELO disse em texto, antes de comparar
+// contra o ID que ele está prestes a enviar à ferramenta de escrita.
+const CAMPOS_VERIFICAVEIS = [
+  {
+    campo: "motorista_id",
+    rotulo: /Motorista:\s*\*\*([^*]+?)\*\*/i,
+    listar: () => catalogo.listarMotoristas(),
+    corresponde: (item, nome) =>
+      normalizar(item.nome) === normalizar(nome) ||
+      item.apelidos?.some((a) => normalizar(a) === normalizar(nome)),
+    exibir: (item) => item.nome,
+  },
+  {
+    campo: "cliente_id",
+    rotulo: /Cliente:\s*\*\*([^*]+?)\*\*/i,
+    listar: () => catalogo.listarClientes(),
+    corresponde: (item, nome) => normalizar(item.nome) === normalizar(nome),
+    exibir: (item) => item.nome,
+  },
+  {
+    campo: "caminhao_id",
+    rotulo: /Caminhão:\s*\*\*([^*]+?)\*\*/i,
+    listar: () => catalogo.listarCaminhoes(),
+    corresponde: (item, nome) =>
+      normalizar(item.placa).replace(/-/g, "") === normalizar(nome).replace(/-/g, ""),
+    exibir: (item) => item.placa,
+  },
+];
+
+// Varre as mensagens da conversa (mais recente primeiro) atrás do resumo mais
+// recente que cite o rótulo em questão — funciona tanto para mensagens do
+// histórico (content é string) quanto para a resposta corrente do modelo
+// nesta mesma chamada (content é um array de blocos).
+function extrairNomeCitado(mensagens, regex) {
+  for (let i = mensagens.length - 1; i >= 0; i--) {
+    const msg = mensagens[i];
+    if (msg.role !== "assistant") continue;
+    const texto =
+      typeof msg.content === "string"
+        ? msg.content
+        : msg.content
+            .filter((b) => b.type === "text")
+            .map((b) => b.text)
+            .join("\n");
+    const match = texto.match(regex);
+    if (match) return match[1].trim();
+  }
+  return null;
+}
+
+// [FIX #10] Cruza o nome que o modelo escreveu no resumo (texto livre) contra
+// o ID que ele está enviando à ferramenta de escrita — pega o caso em que o
+// texto está certo ("Motorista: **BEBETO**" → Geovane) mas o parâmetro da tool
+// call aponta para outra pessoa/registro que também existe de verdade (ex:
+// motorista_id de um motorista diferente). Validação de existência (FK) sozinha
+// não pega esse tipo de erro, já que o ID é válido — só está associado à
+// entidade errada.
+async function verificarCoerenciaNomeId(mensagens, input) {
+  const divergencias = [];
+  for (const cfg of CAMPOS_VERIFICAVEIS) {
+    const idEnviado = input[cfg.campo];
+    if (idEnviado == null) continue;
+
+    const nomeCitado = extrairNomeCitado(mensagens, cfg.rotulo);
+    if (!nomeCitado) continue; // resumo não mencionou esse campo — nada a cruzar
+
+    const lista = await cfg.listar();
+    const candidato = lista.find((item) => cfg.corresponde(item, nomeCitado));
+    if (!candidato) continue; // não conseguiu resolver o nome citado — não bloqueia por ambiguidade
+
+    if (candidato.id !== Number(idEnviado)) {
+      const enviado = lista.find((item) => item.id === Number(idEnviado));
+      divergencias.push(
+        `${cfg.campo}=${idEnviado} (${enviado ? cfg.exibir(enviado) : "id desconhecido"}) não corresponde a "${nomeCitado}" citado no resumo — isso é ${cfg.exibir(candidato)} (#${candidato.id}).`,
+      );
+    }
+  }
+  return divergencias;
+}
+
 // [FIX #1] Execução sequencial de ferramentas para evitar race conditions
 // em operações de escrita dependentes entre si.
 // O comportamento externo é idêntico — apenas garante ordem de execução.
-async function executarFerramentasSequencial(blocosFerramenta) {
+const FERRAMENTAS_COM_VERIFICACAO_NOME = new Set(["criar_viagem_rascunho", "atualizar_viagem"]);
+
+async function executarFerramentasSequencial(blocosFerramenta, mensagens) {
   const resultados = [];
   const recuperaveis = new Set();
   for (const bloco of blocosFerramenta) {
     try {
+      // [FIX #10] Antes de gravar, confere se o ID enviado bate com o nome que
+      // o próprio modelo citou no resumo mais recente.
+      if (FERRAMENTAS_COM_VERIFICACAO_NOME.has(bloco.name)) {
+        const divergencias = await verificarCoerenciaNomeId(mensagens, bloco.input);
+        if (divergencias.length) {
+          throw new ReferenciaInvalidaError(
+            `Divergência entre o resumo apresentado e os dados enviados à ferramenta: ${divergencias.join(" | ")} ` +
+              `Confira o cadastro (listar_motoristas/listar_clientes/listar_caminhoes) e corrija antes de tentar gravar de novo.`,
+          );
+        }
+      }
+
       const resultado = await executar(bloco.name, bloco.input);
       console.log(
         `[agent] ferramenta ${bloco.name} -> ${formatarResultadoFerramenta(resultado)}`,
@@ -318,8 +424,10 @@ export async function processarMensagem(telefone, texto) {
     ];
 
     // [FIX #1] Execução sequencial em vez de Promise.all.
+    // [FIX #10] Passa `mensagens` (já inclui a resposta atual) para a verificação
+    // de coerência nome↔ID poder localizar o resumo mais recente.
     const { resultados: resultadosFerramentas, recuperaveis } =
-      await executarFerramentasSequencial(blocosFerramenta);
+      await executarFerramentasSequencial(blocosFerramenta, mensagens);
 
     // [FIX #7] Se alguma ferramenta de escrita retornou erro NÃO recuperável,
     // interrompe o loop e avisa o usuário — evita que o modelo confirme uma
