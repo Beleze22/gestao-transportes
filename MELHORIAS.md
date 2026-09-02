@@ -28,6 +28,8 @@ Aplicadas e em produção (jul/2026):
 - [x] **Normalização de erros de transcrição** no prompt (ex: "negro" → "nego").
 - [x] **Transcrição de áudio (Groq Whisper)** — `whisper-large-v3-turbo` via `telegram.js`.
 - [x] **Auditoria diária** (23h) — detecta confirmações suspeitas por tempo de resposta.
+- [x] **FIX #11 — turno que aborta não deixa pedido órfão** — quando a chamada à API falha (crédito esgotado, timeout), o histórico agora registra o fechamento do turno em vez de deixar a mensagem do usuário sem resposta. Sem isso o modelo lia o pedido como pendente e podia executá-lo sozinho enquanto o usuário repetia — duplicando o registro. Inclui: aviso ao usuário que diferencia falha antes/depois de gravar, separação entre erro de processamento e erro de envio, regra no prompt sobre pedidos antigos que falharam, e `agent/scripts/fechar-turnos-orfaos.js` para o resíduo já no banco.
+- [x] **FIX #12 — erro de escrita não mente sobre o que já foi gravado** — o caminho de erro não recuperável (FIX #7) afirmava "Nada foi registrado" mesmo quando escritas anteriores do turno já tinham ido para o banco, e ainda anexava a conferência do que foi gravado logo abaixo. Além disso, as gravações eram contabilizadas *depois* do `return` antecipado, então uma escrita bem-sucedida no mesmo lote da que falhou sumia do aviso e do histórico. O fechamento do turno foi centralizado em `finalizarTurno()` — os três pontos de saída divergiram justamente por duplicarem essa lógica.
 
 Pendentes:
 

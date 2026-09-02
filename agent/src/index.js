@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import { extrairMensagemRecebida, enviarMensagem, transcreverAudio } from "./telegram.js";
-import { processarMensagem } from "./agent.js";
+import { processarMensagem, textoDeFalha } from "./agent.js";
 import { iniciarScheduler } from "./scheduler.js";
 import { listarConfigNotificacoes, viagensDoDia, rascunhosProximosDias, viagensComValorPendente } from "./services/agenda.js";
 import { enviarDigestManha, enviarDigestNoite } from "./services/notify.js";
@@ -46,6 +46,15 @@ function updateJaProcessado(updateId) {
     updatesVistos.delete(updatesVistos.values().next().value);
   }
   return false;
+}
+
+// [FIX #11] Envia um aviso ao usuário sem deixar que a falha de envio derrube o handler.
+async function avisar(chatId, texto) {
+  try {
+    await enviarMensagem(chatId, texto);
+  } catch (err) {
+    console.error("[webhook] falha também ao enviar o aviso ao usuário:", err);
+  }
 }
 
 function exigirTestSecret(req, res, next) {
@@ -100,19 +109,39 @@ app.post("/webhook/telegram", async (req, res) => {
         }
       }
 
-      const resposta = await processarMensagem(chatId, texto);
-      await enviarMensagem(chatId, resposta);
-    } catch (err) {
-      console.error("[webhook] erro ao processar mensagem:", err);
-      // Avisa o usuário — sem isso ele fica no vácuo e pode achar que a mensagem foi processada.
+      let resposta;
       try {
-        await enviarMensagem(
-          chatId,
-          "⚠️ Ocorreu um erro ao processar sua mensagem — nada foi gravado. Pode tentar novamente?",
-        );
-      } catch (errEnvio) {
-        console.error("[webhook] falha também ao enviar aviso de erro:", errEnvio);
+        resposta = await processarMensagem(chatId, texto);
+      } catch (err) {
+        console.error("[webhook] erro ao processar mensagem:", err);
+        // Avisa o usuário — sem isso ele fica no vácuo e pode achar que a mensagem foi processada.
+        // [FIX #11] O texto depende do que o turno chegou a gravar antes de abortar:
+        // afirmar "nada foi gravado" quando algo foi é o que leva o usuário a repetir
+        // o pedido e duplicar o registro.
+        await avisar(chatId, textoDeFalha(err));
+        return;
       }
+
+      try {
+        await enviarMensagem(chatId, resposta);
+      } catch (err) {
+        // [FIX #11] Aqui o turno JÁ terminou — a resposta existe e pode ter gravado.
+        // Só o envio falhou, então não se pode dizer que nada foi salvo.
+        console.error("[webhook] erro ao enviar a resposta:", err);
+        await avisar(
+          chatId,
+          "⚠️ Processei sua mensagem, mas não consegui te enviar a resposta. " +
+            "Confira o registro antes de repetir o pedido — ele pode já ter sido salvo.",
+        );
+      }
+    } catch (err) {
+      // Rede de segurança para qualquer erro fora dos blocos acima. Não afirma nada
+      // sobre gravação, porque neste ponto não dá para saber.
+      console.error("[webhook] erro inesperado:", err);
+      await avisar(
+        chatId,
+        "⚠️ Ocorreu um erro inesperado. Confira o registro antes de repetir o pedido.",
+      );
     }
   });
 });

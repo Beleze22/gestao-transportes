@@ -104,6 +104,7 @@ Apelidos de motoristas:
 - Só use adicionar_motorista se o usuário confirmar que é realmente uma pessoa nova.
 - Antes de confirmar uma viagem com motorista e caminhão definidos para uma data, rode verificar_conflito_agenda; se houver conflito, avise o usuário e peça confirmação antes de prosseguir.
 - Ao editar uma viagem por descrição (ex: "a viagem do dia 05/06 com o cliente João"), busque com consultar_viagens e, se houver mais de uma correspondência, peça para o usuário especificar qual.
+- PEDIDOS ANTIGOS QUE FALHARAM: se o histórico tiver uma mensagem do usuário seguida de um aviso de erro (⚠️) ou sem nenhuma resposta em seguida, aquele pedido NÃO foi atendido e o usuário já sabe disso. Nunca o execute por conta própria — responda somente ao pedido atual. Se achar que algo ficou pendente, pergunte antes de gravar qualquer coisa.
 - Seja direto e conciso — está conversando por WhatsApp. Use valores em R$ com duas casas decimais.
 - Nunca invente dados: se não souber algo, pergunte ou consulte o banco.`;
 
@@ -329,6 +330,59 @@ const AVISO_GUARD =
   "Se sua resposta se referia a registros já existentes (consulta), reformule-a " +
   "deixando claro que nenhuma gravação nova foi feita agora.";
 
+// [FIX #11] Textos de falha em um só lugar — o que vai para o Telegram e o que vai
+// para o histórico precisam contar a mesma história, senão o modelo lê nas conversas
+// seguintes um pedido que parece pendente e o usuário lê um erro.
+export const TEXTO_FALHA_SEM_GRAVACAO =
+  "⚠️ Ocorreu um erro ao processar sua mensagem — nada foi gravado. Pode tentar novamente?";
+
+export const TEXTO_FALHA_APOS_GRAVACAO =
+  "⚠️ Ocorreu um erro no meio do processamento, mas parte do pedido JÁ foi gravada no banco.";
+
+// [FIX #11] Monta o aviso ao usuário a partir do que o turno realmente chegou a gravar
+// antes de abortar. Dizer "nada foi gravado" quando algo foi é o que faz o usuário
+// repetir o pedido e duplicar o registro.
+export function textoDeFalha(err) {
+  const progresso = err?.progresso;
+  if (!progresso?.escritas?.length) return TEXTO_FALHA_SEM_GRAVACAO;
+
+  const conferencia = progresso.conferencias?.length
+    ? `\n\n📋 Já gravado:\n${progresso.conferencias.join("\n\n")}`
+    : `\n\nGravado: ${progresso.escritas.join(", ")}.`;
+
+  return (
+    TEXTO_FALHA_APOS_GRAVACAO +
+    conferencia +
+    "\n\nConfira antes de repetir o pedido — repetir agora duplicaria o registro."
+  );
+}
+
+// [FIX #11] Fecha o turno no histórico quando ele aborta por exceção (crédito da API
+// esgotado, banco fora do ar, timeout). Sem isso o histórico guarda a mensagem do
+// usuário sem nenhuma resposta: nas conversas seguintes o modelo lê aquilo como um
+// pedido ainda pendente e pode executá-lo por conta própria — enquanto o usuário, que
+// só viu o aviso de erro, repete o pedido achando que não foi feito. As duas coisas
+// juntas duplicam o registro.
+async function registrarFalhaNoHistorico(telefone, err) {
+  const motivo = (err?.message ?? "erro desconhecido").slice(0, 200);
+  const escritas = err?.progresso?.escritas ?? [];
+
+  const nota = escritas.length
+    ? `[registro do sistema: o turno falhou (${motivo}) DEPOIS de gravar → ${escritas.join(", ")}. ` +
+      `Esses registros EXISTEM no banco. Se o usuário repetir o pedido, avise que já está gravado ` +
+      `e confirme com ele antes de gravar de novo.]`
+    : `[registro do sistema: o turno falhou (${motivo}) e NADA foi gravado. Este pedido não foi ` +
+      `atendido e o usuário recebeu apenas um aviso de erro. Não o execute por conta própria — ` +
+      `espere ele pedir de novo, e então atenda uma única vez.]`;
+
+  try {
+    await registrarMensagem(telefone, "assistant", `${textoDeFalha(err)}\n\n${nota}`);
+  } catch (errHistorico) {
+    // Não pode mascarar o erro original — só registra e segue.
+    console.error("[agent] falha ao registrar o erro no histórico:", errHistorico);
+  }
+}
+
 export async function processarMensagem(telefone, texto) {
   // [FIX #6] Valida entrada antes de qualquer I/O.
   const erroValidacao = validarEntrada(texto);
@@ -338,6 +392,22 @@ export async function processarMensagem(telefone, texto) {
   }
 
   await registrarMensagem(telefone, "user", texto);
+
+  // [FIX #11] Vive fora do try para que o catch saiba o que já tinha ido para o banco
+  // quando o turno abortou no meio.
+  const progresso = { escritas: [], conferencias: [] };
+
+  try {
+    return await rodarTurno(telefone, progresso);
+  } catch (err) {
+    const erro = err instanceof Error ? err : new Error(String(err));
+    erro.progresso = progresso;
+    await registrarFalhaNoHistorico(telefone, erro);
+    throw erro;
+  }
+}
+
+async function rodarTurno(telefone, progresso) {
   const historico = await buscarHistorico(telefone);
 
   // [FIX #5] Trunca o histórico se estiver próximo do limite do context window.
@@ -359,9 +429,10 @@ export async function processarMensagem(telefone, texto) {
   // Gravações reais do turno (nome #id) — anexadas ao histórico para que o modelo
   // veja, nas conversas futuras, que confirmações verdadeiras vêm acompanhadas de
   // ferramentas executadas (sem isso o histórico ensina que texto sozinho grava).
-  const escritasExecutadas = [];
+  // [FIX #11] Moram em `progresso` para sobreviverem a uma exceção no meio do turno.
+  const escritasExecutadas = progresso.escritas;
   // [FIX #9] Linhas de conferência (geradas pelo código) de cada escrita bem-sucedida.
-  const conferencias = [];
+  const conferencias = progresso.conferencias;
 
   for (let iteracao = 0; iteracao < MAX_ITERACOES; iteracao++) {
     const resposta = await anthropic.messages.create({
@@ -429,6 +500,29 @@ export async function processarMensagem(telefone, texto) {
     const { resultados: resultadosFerramentas, recuperaveis } =
       await executarFerramentasSequencial(blocosFerramenta, mensagens);
 
+    // [FIX #8/#9] Marca o turno e monta a conferência só para blocos que realmente
+    // gravaram — um erro recuperável no mesmo lote não conta como sucesso.
+    // [FIX #12] Roda ANTES do tratamento de erro: uma escrita que deu certo no mesmo
+    // lote da que falhou também precisa contar, senão ela some do aviso ao usuário e
+    // do histórico, e o usuário repete o pedido sem saber que já está gravada.
+    for (const bloco of blocosFerramenta) {
+      if (!isFerramentaEscrita(bloco.name)) continue;
+      const resultado = resultadosFerramentas.find((r) => r.tool_use_id === bloco.id);
+      if (resultado?.is_error) continue;
+      escreveuNoTurno = true;
+      let parsed;
+      try {
+        parsed = JSON.parse(resultado?.content);
+      } catch {
+        // resultado sem JSON parseável — registra só o nome
+      }
+      escritasExecutadas.push(
+        parsed?.id != null ? `${bloco.name} #${parsed.id}` : bloco.name,
+      );
+      const linha = formatarConferencia(bloco.name, parsed);
+      if (linha) conferencias.push(linha);
+    }
+
     // [FIX #7] Se alguma ferramenta de escrita retornou erro NÃO recuperável,
     // interrompe o loop e avisa o usuário — evita que o modelo confirme uma
     // operação que falhou de forma irrecuperável (ex: banco fora do ar).
@@ -447,14 +541,16 @@ export async function processarMensagem(telefone, texto) {
       console.error(
         `[agent] interrompendo loop: erro em ferramenta de escrita "${nomeBloco}"`,
       );
-      respostaFinal =
-        `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}). ` +
-        `Nada foi registrado. Por favor, tente novamente ou verifique com o suporte.`;
-      if (conferencias.length) {
-        respostaFinal += `\n\n📋 Conferência automática (gravado no banco):\n${conferencias.join("\n\n")}`;
-      }
-      await registrarMensagem(telefone, "assistant", respostaFinal);
-      return respostaFinal;
+      // [FIX #12] Antes este texto dizia "Nada foi registrado" sempre — inclusive quando
+      // escritas anteriores do mesmo turno já tinham ido para o banco. O usuário lia que
+      // nada foi salvo, repetia o pedido e duplicava o registro.
+      respostaFinal = escritasExecutadas.length
+        ? `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}) e o pedido não foi concluído. ` +
+          `ATENÇÃO: parte do que veio antes JÁ foi gravada — confira abaixo antes de repetir, ` +
+          `para não duplicar.`
+        : `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}). ` +
+          `Nada foi registrado. Por favor, tente novamente ou verifique com o suporte.`;
+      return finalizarTurno(telefone, respostaFinal, progresso);
     }
 
     if (erroEscrita) {
@@ -463,26 +559,6 @@ export async function processarMensagem(telefone, texto) {
       console.warn(
         `[agent] erro recuperável em ferramenta de escrita — devolvendo ao modelo para autocorreção: ${erroEscrita.content}`,
       );
-    }
-
-    // [FIX #8/#9] Marca o turno e monta a conferência só para blocos que realmente
-    // gravaram — um erro recuperável no mesmo lote não conta como sucesso.
-    for (const bloco of blocosFerramenta) {
-      if (!isFerramentaEscrita(bloco.name)) continue;
-      const resultado = resultadosFerramentas.find((r) => r.tool_use_id === bloco.id);
-      if (resultado?.is_error) continue;
-      escreveuNoTurno = true;
-      let parsed;
-      try {
-        parsed = JSON.parse(resultado?.content);
-      } catch {
-        // resultado sem JSON parseável — registra só o nome
-      }
-      escritasExecutadas.push(
-        parsed?.id != null ? `${bloco.name} #${parsed.id}` : bloco.name,
-      );
-      const linha = formatarConferencia(bloco.name, parsed);
-      if (linha) conferencias.push(linha);
     }
 
     mensagens = [
@@ -506,18 +582,30 @@ export async function processarMensagem(telefone, texto) {
       "Desculpe, não consegui concluir essa solicitação agora. Pode tentar reformular?";
   }
 
+  return finalizarTurno(telefone, respostaFinal, progresso);
+}
+
+// [FIX #12] Fecha o turno de forma uniforme nos três pontos de saída (fim normal,
+// limite de iterações e erro de escrita). Antes cada um montava a resposta por conta
+// própria e eles divergiram: o caminho de erro afirmava "nada foi registrado" e ainda
+// assim anexava a conferência do que tinha sido gravado, e não deixava no histórico o
+// marcador de gravações que o FIX #8 usa como referência.
+async function finalizarTurno(telefone, respostaFinal, progresso) {
+  const { escritas, conferencias } = progresso;
+
   // [FIX #9] Conferência automática — sempre pelo código, nunca pelo texto do modelo.
-  if (conferencias.length) {
-    respostaFinal += `\n\n📋 Conferência automática (gravado no banco):\n${conferencias.join("\n\n")}`;
-  }
+  const texto = conferencias.length
+    ? `${respostaFinal}\n\n📋 Conferência automática (gravado no banco):\n${conferencias.join("\n\n")}`
+    : respostaFinal;
 
   // O marcador vai só para o histórico (não para o usuário): nas próximas conversas
   // o modelo vê que confirmações reais têm gravações associadas.
-  const marcadorEscritas = escritasExecutadas.length
-    ? `\n\n[registro do sistema: gravações executadas neste turno → ${escritasExecutadas.join(", ")}]`
+  const marcador = escritas.length
+    ? `\n\n[registro do sistema: gravações executadas neste turno → ${escritas.join(", ")}]`
     : "";
-  await registrarMensagem(telefone, "assistant", respostaFinal + marcadorEscritas);
-  return respostaFinal;
+
+  await registrarMensagem(telefone, "assistant", texto + marcador);
+  return texto;
 }
 
 // Ferramentas que escrevem no banco — erros nelas devem interromper o fluxo.
