@@ -23,15 +23,34 @@ export default function ViagemForm({
   onAdicionarCliente,
   onAdicionarMotorista,
   onAdicionarCaminhao,
+  // Os defaults reproduzem exatamente o comportamento de cadastro, para a aba
+  // "Viagem" não precisar mudar nada.
+  titulo = "Nova Viagem",
+  textoBotao = "Salvar Viagem",
+  salvando = false,
+  onCancelar,
+  className,
 }) {
-  const [mostrarLogistica, setMostrarLogistica] = useState(false);
+  // Na edição, uma viagem que já tem dados de logística precisa abrir com a seção
+  // expandida — senão o usuário não vê o que está gravado. Só roda na montagem, o
+  // que basta porque o modal é remontado a cada abertura.
+  const [mostrarLogistica, setMostrarLogistica] = useState(
+    () =>
+      Boolean(
+        viagem.localCarregamento ||
+          viagem.localDescarregamento ||
+          viagem.horarioCarregamento ||
+          viagem.horarioDescarregamento ||
+          viagem.observacoes,
+      ),
+  );
 
   const set = (campo) => (val) => setViagem({ ...viagem, [campo]: val });
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
-        <CardTitle>Nova Viagem</CardTitle>
+        <CardTitle>{titulo}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSalvar} className="space-y-4">
@@ -234,9 +253,21 @@ export default function ViagemForm({
             </div>
           )}
 
-          <Button type="submit" className="w-full">
-            Salvar Viagem
-          </Button>
+          {onCancelar ? (
+            <div className="flex gap-2">
+              {/* type="button" é obrigatório: dentro de um <form>, o default é submit. */}
+              <Button type="button" variant="outline" onClick={onCancelar} disabled={salvando}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="flex-1" disabled={salvando}>
+                {salvando ? "Salvando..." : textoBotao}
+              </Button>
+            </div>
+          ) : (
+            <Button type="submit" className="w-full" disabled={salvando}>
+              {salvando ? "Salvando..." : textoBotao}
+            </Button>
+          )}
         </form>
       </CardContent>
     </Card>

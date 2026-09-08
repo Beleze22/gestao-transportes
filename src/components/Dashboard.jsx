@@ -3,14 +3,16 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { AlertCircle, DollarSign, TrendingDown, TrendingUp, Truck } from "lucide-react";
+import { AlertCircle, DollarSign, Pencil, TrendingDown, TrendingUp, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 
@@ -21,7 +23,10 @@ const PERIODO_OPTIONS = [
   { label: "Mês anterior", value: "mes_anterior" },
   { label: "Últimos 3 meses", value: "3_meses" },
   { label: "Este ano", value: "ano_atual" },
+  { label: "Personalizado", value: "personalizado" },
 ];
+
+const PERSONALIZADO = "personalizado";
 
 const STATUS_CONFIG = {
   rascunho:            { label: "Rascunho",   cls: "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100" },
@@ -38,7 +43,24 @@ const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov"
 
 // ── HELPERS ────────────────────────────────────────────────
 
-function getRange(periodo) {
+// Data local como YYYY-MM-DD. Não dá para usar toISOString(): ele converte para UTC,
+// o que desloca o dia em qualquer fuso a leste de Greenwich.
+function iso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
+function getRange(periodo, desde, ate) {
+  if (periodo === PERSONALIZADO) {
+    // Campo em branco vira lado aberto — enquanto você escolhe a data final, a lista
+    // não desaparece. E datas invertidas trocam de lugar em vez de devolver vazio sem
+    // explicação nenhuma.
+    const i = desde || "0000-01-01";
+    const f = ate || "9999-12-31";
+    return i <= f ? { inicio: i, fim: f } : { inicio: f, fim: i };
+  }
+
   const hoje = new Date();
   const a = hoje.getFullYear();
   const m = hoje.getMonth();
@@ -49,16 +71,33 @@ function getRange(periodo) {
     ano_atual:    [new Date(a, 0, 1),     new Date(a, 11, 31)],
   };
   const [ini, fim] = ranges[periodo] ?? ranges.mes_atual;
-  return { inicio: ini.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) };
+  return { inicio: iso(ini), fim: iso(fim) };
+}
+
+function dataBR(s) {
+  return s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR") : null;
+}
+
+function rotuloPeriodo(periodo, desde, ate) {
+  if (periodo !== PERSONALIZADO) {
+    return PERIODO_OPTIONS.find((p) => p.value === periodo)?.label ?? "";
+  }
+  if (desde && ate) return `${dataBR(desde)} a ${dataBR(ate)}`;
+  if (desde) return `a partir de ${dataBR(desde)}`;
+  if (ate) return `até ${dataBR(ate)}`;
+  return "Todo o período";
 }
 
 function brl(v) {
   return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function mesLabel(yyyymm) {
-  const [, m] = yyyymm.split("-");
-  return MESES[parseInt(m) - 1];
+// Com período livre o intervalo pode cruzar anos, e aí só o nome do mês colide
+// ("Jan" duas vezes). O ano só entra no rótulo quando é necessário distinguir.
+function mesLabel(yyyymm, comAno = false) {
+  const [ano, m] = yyyymm.split("-");
+  const nome = MESES[parseInt(m) - 1];
+  return comAno ? `${nome}/${ano.slice(2)}` : nome;
 }
 
 // ── SUB-COMPONENTS ─────────────────────────────────────────
@@ -91,13 +130,29 @@ function StatusBadge({ status }) {
 
 // ── DASHBOARD ──────────────────────────────────────────────
 
-export default function Dashboard({ listaViagens, listaDespesas, listaClientes, listaMotoristas }) {
+export default function Dashboard({
+  listaViagens, listaDespesas, listaClientes, listaMotoristas, onEditarViagem,
+}) {
   const [periodo, setPeriodo]       = useState("mes_atual");
   const [empresa, setEmpresa]       = useState("todas");
   const [clienteId, setClienteId]   = useState("todos");
   const [motoristaId, setMotoristaId] = useState("todos");
+  const [desde, setDesde] = useState("");
+  const [ate, setAte] = useState("");
 
-  const { inicio, fim } = useMemo(() => getRange(periodo), [periodo]);
+  const { inicio, fim } = useMemo(
+    () => getRange(periodo, desde, ate),
+    [periodo, desde, ate]);
+
+  // Ao entrar no modo personalizado, semeia os campos com o período que já estava
+  // selecionado, para partir de algo coerente em vez de um intervalo vazio.
+  const trocarPeriodo = (novo) => {
+    if (novo === PERSONALIZADO && !desde && !ate) {
+      setDesde(inicio);
+      setAte(fim);
+    }
+    setPeriodo(novo);
+  };
 
   const viagensFilt = useMemo(() => listaViagens.filter((v) => {
     if (empresa !== "todas" && v.empresa !== empresa) return false;
@@ -135,8 +190,10 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
       const k = d.data.slice(0, 7);
       g[k] = { fat: g[k]?.fat || 0, desp: (g[k]?.desp || 0) + (d.valor || 0) };
     });
-    return Object.entries(g).sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => ({ mes: mesLabel(k), Faturamento: v.fat, Despesas: v.desp }));
+    const chaves = Object.keys(g);
+    const multiAno = new Set(chaves.map((k) => k.slice(0, 4))).size > 1;
+    return chaves.sort((a, b) => a.localeCompare(b))
+      .map((k) => ({ mes: mesLabel(k, multiAno), Faturamento: g[k].fat, Despesas: g[k].desp }));
   }, [viagensAtivas, despesasFilt]);
 
   // Pizza usa viagensFilt (com canceladas) para mostrar distribuição real de status
@@ -187,13 +244,26 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
       .slice(0, 10),
     [listaViagens]);
 
-  const hoje = new Date();
-  const viagensDoMes = listaViagens
-    .filter((v) => {
-      const d = new Date(v.data + "T12:00:00");
-      return d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear();
-    })
-    .sort((a, b) => a.data.localeCompare(b.data));
+  // Mais recentes primeiro: "Este ano" chega a ~480 viagens, e o que se procura numa
+  // lista dessas costuma estar no fim do período, não no começo.
+  const viagensDoDiario = useMemo(
+    () => [...viagensFilt].sort((a, b) => b.data.localeCompare(a.data)),
+    [viagensFilt]);
+
+  // Soma só as ativas para bater com o KPI de Faturamento — canceladas aparecem na
+  // lista (você quer vê-las) mas não entram na conta.
+  const totalDiario = useMemo(
+    () => viagensAtivas.reduce((s, v) => s + (v.valor_frete || 0), 0),
+    [viagensAtivas]);
+
+  const periodoLabel = rotuloPeriodo(periodo, desde, ate);
+
+  // Descreve os filtros ativos, para a tabela dizer o que está mostrando.
+  const filtrosAtivos = [
+    empresa !== "todas" && empresa,
+    clienteId !== "todos" && listaClientes.find((c) => String(c.id) === clienteId)?.nome,
+    motoristaId !== "todos" && listaMotoristas.find((m) => String(m.id) === motoristaId)?.nome,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-5">
@@ -204,7 +274,7 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: "Período", content: (
-                <Select value={periodo} onValueChange={setPeriodo}>
+                <Select value={periodo} onValueChange={trocarPeriodo}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PERIODO_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
@@ -246,6 +316,22 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
               </div>
             ))}
           </div>
+
+          {periodo === PERSONALIZADO && (
+            <div className="mt-3 grid grid-cols-2 gap-3 border-t pt-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">De</p>
+                <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Até</p>
+                <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+              </div>
+              <p className="col-span-2 text-xs text-muted-foreground">
+                Deixe um dos campos em branco para deixar aquele lado em aberto.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -378,48 +464,98 @@ export default function Dashboard({ listaViagens, listaDespesas, listaClientes, 
 
       <Separator />
 
-      {/* ── DIÁRIO DO MÊS ── */}
+      {/* ── VIAGENS DO FILTRO ── */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">
-            📅 Diário — {MESES[hoje.getMonth()]}/{hoje.getFullYear()}
-          </CardTitle>
+          <div className="flex items-baseline justify-between gap-2">
+            <CardTitle className="text-sm font-semibold">
+              Viagens · {periodoLabel}
+            </CardTitle>
+            <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+              {viagensDoDiario.length} {viagensDoDiario.length === 1 ? "viagem" : "viagens"}
+            </span>
+          </div>
+          {filtrosAtivos.length > 0 && (
+            <p className="text-xs text-muted-foreground">{filtrosAtivos.join(" · ")}</p>
+          )}
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+          {/* O teto de altura precisa ficar no container que rola — que é o do próprio
+              Table. Num div externo, o cabeçalho fixo se ancoraria no wrapper interno,
+              que não rola, e não grudaria. Sem teto, "Este ano" despeja ~480 linhas. */}
+          <Table containerClassName="max-h-[26rem] rounded-md border">
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Empresa</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Motorista</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Frete</TableHead>
+                <TableHead className="w-10 px-1">
+                  <span className="sr-only">Ações</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {viagensDoDiario.length === 0 ? (
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Frete</TableHead>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    Nenhuma viagem para os filtros selecionados
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {viagensDoMes.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      Nenhuma viagem este mês
-                    </TableCell>
-                  </TableRow>
-                ) : viagensDoMes.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell className="whitespace-nowrap">
+              ) : viagensDoDiario.map((v) => {
+                const cancelada = v.status === "cancelada";
+                return (
+                  <TableRow
+                    key={v.id}
+                    onClick={() => onEditarViagem?.(v)}
+                    className={`cursor-pointer ${cancelada ? "text-muted-foreground" : ""}`}>
+                    <TableCell className="whitespace-nowrap tabular-nums">
                       {new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}
                     </TableCell>
-                    <TableCell>{v.empresa}</TableCell>
+                    <TableCell className="whitespace-nowrap">{v.empresa || "—"}</TableCell>
                     <TableCell>{v.clientes?.nome || "—"}</TableCell>
+                    <TableCell>{v.motoristas?.nome || "—"}</TableCell>
                     <TableCell><StatusBadge status={v.status} /></TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell
+                      className={`text-right font-medium tabular-nums whitespace-nowrap ${
+                        cancelada ? "line-through" : ""
+                      }`}>
                       {v.valor_frete != null ? brl(v.valor_frete) : "—"}
                     </TableCell>
+                    <TableCell className="w-10 px-1 py-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        aria-label={`Editar viagem de ${new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditarViagem?.(v);
+                        }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                );
+              })}
+            </TableBody>
+            {viagensDoDiario.length > 0 && (
+              <TableFooter className="sticky bottom-0 z-10 bg-muted">
+                <TableRow>
+                  <TableCell colSpan={6} className="text-xs">
+                    Faturamento do período
+                    {viagensDoDiario.length !== viagensAtivas.length &&
+                      " (sem as canceladas)"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                    {brl(totalDiario)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
+          </Table>
         </CardContent>
       </Card>
     </div>

@@ -6,6 +6,8 @@ import ViagemForm from "@/components/ViagemForm";
 import DespesaForm from "@/components/DespesaForm";
 import Dashboard from "@/components/Dashboard";
 import ModalQuickAdd from "@/components/ModalQuickAdd";
+import ModalEditarViagem from "@/components/ModalEditarViagem";
+import ModalConfirmacaoViagem from "@/components/ModalConfirmacaoViagem";
 
 function App() {
   const {
@@ -22,6 +24,10 @@ function App() {
     listaCategorias,
     handleSalvarViagem,
     handleSalvarDespesa,
+    handleAtualizarViagem,
+    cancelarViagem,
+    reativarViagem,
+    excluirViagem,
     adicionarCliente,
     adicionarMotorista,
     adicionarCaminhao,
@@ -31,9 +37,71 @@ function App() {
   const [modal, setModal] = useState(null);
   const [modalKey, setModalKey] = useState(0);
 
+  // Qual viagem está sendo editada / confirmada. O rascunho do formulário mora dentro
+  // do ModalEditarViagem; `edicaoKey` o remonta a cada abertura, como o modalKey faz
+  // com o ModalQuickAdd.
+  const [viagemEditando, setViagemEditando] = useState(null);
+  const [edicaoKey, setEdicaoKey] = useState(0);
+  const [viagemConfirmando, setViagemConfirmando] = useState(null);
+
   const openModal = (config) => {
     setModal(config);
     setModalKey((k) => k + 1);
+  };
+
+  const abrirEdicao = (row) => {
+    setViagemEditando(row);
+    setEdicaoKey((k) => k + 1);
+  };
+
+  const onAtualizarViagem = async (id, form) => {
+    try {
+      await handleAtualizarViagem(id, form);
+      setViagemEditando(null);
+      toast.success("Viagem atualizada!");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const onCancelarViagem = async (id) => {
+    try {
+      await cancelarViagem(id);
+      setViagemConfirmando(null);
+      toast.success("Viagem cancelada — ela saiu dos cálculos.");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const onReativarViagem = async (row) => {
+    try {
+      await reativarViagem(row.id);
+      setViagemEditando(null);
+      toast.success("Viagem reativada!");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const onExcluirViagem = async (id) => {
+    try {
+      // Limpa o estado ANTES de mexer na lista: se a linha sumir enquanto um modal
+      // ainda a referencia, a próxima renderização acessa um registro que não existe.
+      setViagemConfirmando(null);
+      setViagemEditando(null);
+      await excluirViagem(id);
+      toast.success("Viagem excluída definitivamente.");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  // Sai da edição e entra na confirmação em sequência, nunca empilhados: dois Dialog
+  // aninhados no Radix deixam dois overlays e podem travar o body.
+  const pedirConfirmacao = (row) => {
+    setViagemEditando(null);
+    setViagemConfirmando(row);
   };
 
   const onSalvarViagem = async (e) => {
@@ -188,6 +256,7 @@ function App() {
               listaDespesas={listaDespesas}
               listaClientes={listaClientes}
               listaMotoristas={listaMotoristas}
+              onEditarViagem={abrirEdicao}
             />
           </TabsContent>
         </Tabs>
@@ -198,6 +267,26 @@ function App() {
         key={modalKey}
         modal={modal}
         onClose={() => setModal(null)}
+      />
+      <ModalEditarViagem
+        key={edicaoKey}
+        viagem={viagemEditando}
+        listaClientes={listaClientes}
+        listaMotoristas={listaMotoristas}
+        listaCaminhoes={listaCaminhoes}
+        onSalvar={onAtualizarViagem}
+        onFechar={() => setViagemEditando(null)}
+        onCancelarViagem={pedirConfirmacao}
+        onReativarViagem={onReativarViagem}
+        onAdicionarCliente={handleAdicionarCliente}
+        onAdicionarMotorista={handleAdicionarMotorista}
+        onAdicionarCaminhao={handleAdicionarCaminhao}
+      />
+      <ModalConfirmacaoViagem
+        viagem={viagemConfirmando}
+        onCancelar={onCancelarViagem}
+        onExcluir={onExcluirViagem}
+        onFechar={() => setViagemConfirmando(null)}
       />
     </div>
   );
