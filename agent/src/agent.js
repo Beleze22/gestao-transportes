@@ -1,8 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { definicoes, executar } from "./tools.js";
 import { buscarHistorico, registrarMensagem } from "./services/history.js";
-import * as catalogo from "./services/catalogo.js";
-import { ReferenciaInvalidaError } from "./erros.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -81,6 +79,7 @@ Diretrizes:
 
 - REGRA CRÍTICA — FERRAMENTA OBRIGATÓRIA: você só tem efeito no mundo real através das ferramentas — nada acontece "automaticamente" e você não tem memória de ações fora delas. Por isso, NUNCA diga que algo foi "registrado", "cadastrado", "salvo", "atualizado", "corrigido" etc. sem ter chamado a ferramenta de escrita correspondente NESTA mesma resposta e recebido o resultado de sucesso dela — mesmo que o pedido pareça simples, repetitivo ou idêntico a algo feito antes na conversa. Isso se aplica inclusive quando o usuário responde "sim", "pode", "confirma" a um resumo que você apresentou: essa confirmação não executa nada sozinha — você ainda precisa chamar a ferramenta. Confirmar uma ação que não ocorreu cria dados financeiros incorretos.
 - PROVA DE GRAVAÇÃO: toda confirmação de gravação DEVE citar o ID retornado pela ferramenta neste turno (ex: "✅ Viagem #415 cadastrada!", "✅ Despesa #66 registrada!"). Se você não recebeu um ID de uma ferramenta de escrita NESTE turno, é porque nada foi gravado — não afirme o contrário.
+- CONFERÊNCIA OBRIGATÓRIA DE REFERÊNCIAS: sempre que enviar cliente_id, motorista_id, caminhao_id ou categoria a uma ferramenta de escrita, envie TAMBÉM o campo de nome correspondente (cliente_nome, motorista_nome, caminhao_placa, categoria_nome), copiado EXATAMENTE como veio da ferramenta de listagem. O sistema cruza o nome com o ID no banco e RECUSA a gravação se o ID apontar para outro registro — é essa conferência que impede lançar um frete no motorista errado. Enviar o ID sem o nome também é recusado.
 - Quando o usuário mencionar nomes (cliente, motorista, empresa, categoria), busque o ID correspondente nas listas (listar_clientes, listar_motoristas, etc) antes de criar/atualizar registros. Se não encontrar, pergunte se deve cadastrar um novo.
 - IMPORTANTE — categorias de despesa: o campo "categoria" de registrar_despesa exige o ID real cadastrado em categoriasdespesas — NUNCA chute ou invente esse ID (ex.: não assuma que "pedágio" é categoria 1). Antes de QUALQUER registrar_despesa, chame listar_categorias e procure uma categoria cujo nome corresponda ao que o usuário disse. Se não houver correspondência, pergunte ao usuário se deve cadastrar uma categoria nova (adicionar_categoria) com esse nome ou usar uma das existentes — só prossiga com registrar_despesa depois de ter um ID real confirmado.
 - "Possível frete" / dados incompletos → sempre use criar_viagem_rascunho, nunca recuse por falta de dados.
@@ -130,118 +129,17 @@ function formatarResultadoFerramenta(resultado) {
   return JSON.stringify(resultado, null, 2);
 }
 
-function normalizar(s) {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // remove acentos
-    .trim()
-    .toLowerCase();
-}
-
-// [FIX #10] Rótulos usados pelo próprio prompt no resumo de confirmação (ver
-// SYSTEM_PROMPT_BASE) — "Cliente: **NOME**", "Motorista: **NOME**", etc.
-// Usados para extrair o nome que o MODELO disse em texto, antes de comparar
-// contra o ID que ele está prestes a enviar à ferramenta de escrita.
-const CAMPOS_VERIFICAVEIS = [
-  {
-    campo: "motorista_id",
-    rotulo: /Motorista:\s*\*\*([^*]+?)\*\*/i,
-    listar: () => catalogo.listarMotoristas(),
-    corresponde: (item, nome) =>
-      normalizar(item.nome) === normalizar(nome) ||
-      item.apelidos?.some((a) => normalizar(a) === normalizar(nome)),
-    exibir: (item) => item.nome,
-  },
-  {
-    campo: "cliente_id",
-    rotulo: /Cliente:\s*\*\*([^*]+?)\*\*/i,
-    listar: () => catalogo.listarClientes(),
-    corresponde: (item, nome) => normalizar(item.nome) === normalizar(nome),
-    exibir: (item) => item.nome,
-  },
-  {
-    campo: "caminhao_id",
-    rotulo: /Caminhão:\s*\*\*([^*]+?)\*\*/i,
-    listar: () => catalogo.listarCaminhoes(),
-    corresponde: (item, nome) =>
-      normalizar(item.placa).replace(/-/g, "") === normalizar(nome).replace(/-/g, ""),
-    exibir: (item) => item.placa,
-  },
-];
-
-// Varre as mensagens da conversa (mais recente primeiro) atrás do resumo mais
-// recente que cite o rótulo em questão — funciona tanto para mensagens do
-// histórico (content é string) quanto para a resposta corrente do modelo
-// nesta mesma chamada (content é um array de blocos).
-function extrairNomeCitado(mensagens, regex) {
-  for (let i = mensagens.length - 1; i >= 0; i--) {
-    const msg = mensagens[i];
-    if (msg.role !== "assistant") continue;
-    const texto =
-      typeof msg.content === "string"
-        ? msg.content
-        : msg.content
-            .filter((b) => b.type === "text")
-            .map((b) => b.text)
-            .join("\n");
-    const match = texto.match(regex);
-    if (match) return match[1].trim();
-  }
-  return null;
-}
-
-// [FIX #10] Cruza o nome que o modelo escreveu no resumo (texto livre) contra
-// o ID que ele está enviando à ferramenta de escrita — pega o caso em que o
-// texto está certo ("Motorista: **BEBETO**" → Geovane) mas o parâmetro da tool
-// call aponta para outra pessoa/registro que também existe de verdade (ex:
-// motorista_id de um motorista diferente). Validação de existência (FK) sozinha
-// não pega esse tipo de erro, já que o ID é válido — só está associado à
-// entidade errada.
-async function verificarCoerenciaNomeId(mensagens, input) {
-  const divergencias = [];
-  for (const cfg of CAMPOS_VERIFICAVEIS) {
-    const idEnviado = input[cfg.campo];
-    if (idEnviado == null) continue;
-
-    const nomeCitado = extrairNomeCitado(mensagens, cfg.rotulo);
-    if (!nomeCitado) continue; // resumo não mencionou esse campo — nada a cruzar
-
-    const lista = await cfg.listar();
-    const candidato = lista.find((item) => cfg.corresponde(item, nomeCitado));
-    if (!candidato) continue; // não conseguiu resolver o nome citado — não bloqueia por ambiguidade
-
-    if (candidato.id !== Number(idEnviado)) {
-      const enviado = lista.find((item) => item.id === Number(idEnviado));
-      divergencias.push(
-        `${cfg.campo}=${idEnviado} (${enviado ? cfg.exibir(enviado) : "id desconhecido"}) não corresponde a "${nomeCitado}" citado no resumo — isso é ${cfg.exibir(candidato)} (#${candidato.id}).`,
-      );
-    }
-  }
-  return divergencias;
-}
-
 // [FIX #1] Execução sequencial de ferramentas para evitar race conditions
 // em operações de escrita dependentes entre si.
 // O comportamento externo é idêntico — apenas garante ordem de execução.
-const FERRAMENTAS_COM_VERIFICACAO_NOME = new Set(["criar_viagem_rascunho", "atualizar_viagem"]);
-
-async function executarFerramentasSequencial(blocosFerramenta, mensagens) {
+// [FIX #13] A conferência nome↔ID vive em tools.js/executar (services/referencias.js).
+// A versão anterior ficava aqui e extraía o nome do resumo em texto livre com regex;
+// como o prompt nunca exigiu aquele formato, ela quase nunca casava e passava reto.
+async function executarFerramentasSequencial(blocosFerramenta) {
   const resultados = [];
   const recuperaveis = new Set();
   for (const bloco of blocosFerramenta) {
     try {
-      // [FIX #10] Antes de gravar, confere se o ID enviado bate com o nome que
-      // o próprio modelo citou no resumo mais recente.
-      if (FERRAMENTAS_COM_VERIFICACAO_NOME.has(bloco.name)) {
-        const divergencias = await verificarCoerenciaNomeId(mensagens, bloco.input);
-        if (divergencias.length) {
-          throw new ReferenciaInvalidaError(
-            `Divergência entre o resumo apresentado e os dados enviados à ferramenta: ${divergencias.join(" | ")} ` +
-              `Confira o cadastro (listar_motoristas/listar_clientes/listar_caminhoes) e corrija antes de tentar gravar de novo.`,
-          );
-        }
-      }
-
       const resultado = await executar(bloco.name, bloco.input);
       console.log(
         `[agent] ferramenta ${bloco.name} -> ${formatarResultadoFerramenta(resultado)}`,
@@ -495,10 +393,8 @@ async function rodarTurno(telefone, progresso) {
     ];
 
     // [FIX #1] Execução sequencial em vez de Promise.all.
-    // [FIX #10] Passa `mensagens` (já inclui a resposta atual) para a verificação
-    // de coerência nome↔ID poder localizar o resumo mais recente.
     const { resultados: resultadosFerramentas, recuperaveis } =
-      await executarFerramentasSequencial(blocosFerramenta, mensagens);
+      await executarFerramentasSequencial(blocosFerramenta);
 
     // [FIX #8/#9] Marca o turno e monta a conferência só para blocos que realmente
     // gravaram — um erro recuperável no mesmo lote não conta como sucesso.
