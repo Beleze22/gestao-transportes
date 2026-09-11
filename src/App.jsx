@@ -7,7 +7,8 @@ import DespesaForm from "@/components/DespesaForm";
 import Dashboard from "@/components/Dashboard";
 import ModalQuickAdd from "@/components/ModalQuickAdd";
 import ModalEditarViagem from "@/components/ModalEditarViagem";
-import ModalConfirmacaoViagem from "@/components/ModalConfirmacaoViagem";
+import ModalEditarDespesa from "@/components/ModalEditarDespesa";
+import ModalConfirmacao from "@/components/ModalConfirmacao";
 
 function App() {
   const {
@@ -28,6 +29,8 @@ function App() {
     cancelarViagem,
     reativarViagem,
     excluirViagem,
+    handleAtualizarDespesa,
+    excluirDespesa,
     adicionarCliente,
     adicionarMotorista,
     adicionarCaminhao,
@@ -41,18 +44,35 @@ function App() {
   // do ModalEditarViagem; `edicaoKey` o remonta a cada abertura, como o modalKey faz
   // com o ModalQuickAdd.
   const [viagemEditando, setViagemEditando] = useState(null);
+  const [despesaEditando, setDespesaEditando] = useState(null);
   const [edicaoKey, setEdicaoKey] = useState(0);
-  const [viagemConfirmando, setViagemConfirmando] = useState(null);
+  // Alvo da confirmação de remoção, no formato que o ModalConfirmacao espera.
+  const [confirmacao, setConfirmacao] = useState(null);
 
   const openModal = (config) => {
     setModal(config);
     setModalKey((k) => k + 1);
   };
 
-  const abrirEdicao = (row) => {
+  const abrirEdicaoViagem = (row) => {
     setViagemEditando(row);
     setEdicaoKey((k) => k + 1);
   };
+
+  const abrirEdicaoDespesa = (row) => {
+    setDespesaEditando(row);
+    setEdicaoKey((k) => k + 1);
+  };
+
+  const fecharTudo = () => {
+    setViagemEditando(null);
+    setDespesaEditando(null);
+    setConfirmacao(null);
+  };
+
+  const brl = (v) =>
+    (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const dataBR = (d) => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
 
   const onAtualizarViagem = async (id, form) => {
     try {
@@ -67,7 +87,7 @@ function App() {
   const onCancelarViagem = async (id) => {
     try {
       await cancelarViagem(id);
-      setViagemConfirmando(null);
+      setConfirmacao(null);
       toast.success("Viagem cancelada — ela saiu dos cálculos.");
     } catch (err) {
       toast.error(err.message);
@@ -88,8 +108,7 @@ function App() {
     try {
       // Limpa o estado ANTES de mexer na lista: se a linha sumir enquanto um modal
       // ainda a referencia, a próxima renderização acessa um registro que não existe.
-      setViagemConfirmando(null);
-      setViagemEditando(null);
+      fecharTudo();
       await excluirViagem(id);
       toast.success("Viagem excluída definitivamente.");
     } catch (err) {
@@ -97,11 +116,49 @@ function App() {
     }
   };
 
+  const onAtualizarDespesa = async (id, form) => {
+    try {
+      await handleAtualizarDespesa(id, form);
+      setDespesaEditando(null);
+      toast.success("Despesa atualizada!");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const onExcluirDespesa = async (id) => {
+    try {
+      fecharTudo();
+      await excluirDespesa(id);
+      toast.success("Despesa excluída definitivamente.");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   // Sai da edição e entra na confirmação em sequência, nunca empilhados: dois Dialog
   // aninhados no Radix deixam dois overlays e podem travar o body.
-  const pedirConfirmacao = (row) => {
+  const confirmarRemocaoViagem = (row) => {
     setViagemEditando(null);
-    setViagemConfirmando(row);
+    setConfirmacao({
+      id: row.id,
+      rotulo: "viagem",
+      permiteCancelar: true,
+      resumo: [dataBR(row.data), row.empresa, row.clientes?.nome, brl(row.valor_frete)]
+        .filter(Boolean).join(" · "),
+    });
+  };
+
+  const confirmarRemocaoDespesa = (row) => {
+    setDespesaEditando(null);
+    setConfirmacao({
+      id: row.id,
+      rotulo: "despesa",
+      // Despesa não tem status: não existe o meio-termo do cancelamento.
+      permiteCancelar: false,
+      resumo: [dataBR(row.data), row.empresa, row.categoriasdespesas?.categoria, brl(row.valor)]
+        .filter(Boolean).join(" · "),
+    });
   };
 
   const onSalvarViagem = async (e) => {
@@ -256,7 +313,8 @@ function App() {
               listaDespesas={listaDespesas}
               listaClientes={listaClientes}
               listaMotoristas={listaMotoristas}
-              onEditarViagem={abrirEdicao}
+              onEditarViagem={abrirEdicaoViagem}
+              onEditarDespesa={abrirEdicaoDespesa}
             />
           </TabsContent>
         </Tabs>
@@ -276,17 +334,30 @@ function App() {
         listaCaminhoes={listaCaminhoes}
         onSalvar={onAtualizarViagem}
         onFechar={() => setViagemEditando(null)}
-        onCancelarViagem={pedirConfirmacao}
+        onCancelarViagem={confirmarRemocaoViagem}
         onReativarViagem={onReativarViagem}
         onAdicionarCliente={handleAdicionarCliente}
         onAdicionarMotorista={handleAdicionarMotorista}
         onAdicionarCaminhao={handleAdicionarCaminhao}
       />
-      <ModalConfirmacaoViagem
-        viagem={viagemConfirmando}
+      <ModalEditarDespesa
+        key={`despesa-${edicaoKey}`}
+        despesa={despesaEditando}
+        listaCategorias={listaCategorias}
+        onSalvar={onAtualizarDespesa}
+        onFechar={() => setDespesaEditando(null)}
+        onExcluirDespesa={confirmarRemocaoDespesa}
+        onAdicionarCategoria={handleAdicionarCategoria}
+      />
+      <ModalConfirmacao
+        // Remonta a cada alvo novo: sem isso o modo (cancelar/excluir) e o campo de
+        // confirmação vazariam de uma remoção para a seguinte — uma viagem aberta
+        // depois de uma despesa já apareceria direto no modo de exclusão.
+        key={confirmacao ? `${confirmacao.rotulo}-${confirmacao.id}` : "nenhum"}
+        alvo={confirmacao}
         onCancelar={onCancelarViagem}
-        onExcluir={onExcluirViagem}
-        onFechar={() => setViagemConfirmando(null)}
+        onExcluir={confirmacao?.rotulo === "despesa" ? onExcluirDespesa : onExcluirViagem}
+        onFechar={() => setConfirmacao(null)}
       />
     </div>
   );

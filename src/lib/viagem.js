@@ -1,3 +1,5 @@
+import { texto, numero, horaCurta, hojeISO } from "./campos.js";
+
 // Ponte entre o formulário e o banco, mais a regra de status.
 //
 // O ViagemForm usa camelCase e guarda tudo como string; a tabela usa snake_case e
@@ -19,23 +21,6 @@ export const VIAGEM_VAZIA = {
   horarioDescarregamento: "",
   observacoes: "",
 };
-
-// O Postgres devolve colunas `time` como "09:00:00". Um <input type="time"> com o
-// step padrão recusa o componente de segundos e renderiza VAZIO — o horário salvo
-// sumiria da tela e seria apagado na primeira gravação.
-const horaCurta = (t) => (t ? String(t).slice(0, 5) : "");
-
-const texto = (v) => (v == null ? "" : String(v));
-
-// Número a partir do campo de texto. O teste explícito contra "" existe porque
-// existem viagens com valor 0 no banco (ex: #75 tem frete e pagamento zerados) e
-// um teste de veracidade transformaria esse 0 legítimo em null.
-function numero(v) {
-  const s = String(v ?? "").trim();
-  if (s === "") return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
 
 // Linha do banco -> estado do formulário. Tudo sai como string: um null num input
 // controlado faz o React trocar o campo para não-controlado no meio da vida dele.
@@ -86,6 +71,18 @@ export function statusPorCompletude(p) {
   return "confirmada";
 }
 
+// Status considerando também a data. statusPorCompletude é cego a ela: uma viagem
+// completa vira "confirmada", que significa "agendada, vai acontecer". Para uma viagem
+// lançada depois do fato — o caso normal de quem registra o dia no fim do expediente —
+// isso está errado, e só era corrigido pelo cron `marcarRealizadasPendentes` na
+// meia-noite seguinte. Aqui a mesma regra é aplicada na hora.
+export function statusParaViagem(payload, hoje = hojeISO()) {
+  const base = statusPorCompletude(payload);
+  if (base === "rascunho") return base;          // incompleta continua rascunho
+  if (!payload.data || payload.data >= hoje) return base; // hoje ou futura: agendada
+  return base === "confirmada" ? "concluida" : "realizada_pendente";
+}
+
 // Status depois de uma edição, preservando o ciclo de vida.
 //
 // A guarda de "cancelada" NÃO existe no agente: lá, editar uma viagem cancelada cai
@@ -101,7 +98,7 @@ export function statusAposEdicao(statusAtual, payload) {
       : "realizada_pendente";
   }
 
-  return statusPorCompletude(payload);
+  return statusParaViagem(payload);
 }
 
 export function validarViagem(form) {

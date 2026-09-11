@@ -131,7 +131,8 @@ function StatusBadge({ status }) {
 // ── DASHBOARD ──────────────────────────────────────────────
 
 export default function Dashboard({
-  listaViagens, listaDespesas, listaClientes, listaMotoristas, onEditarViagem,
+  listaViagens, listaDespesas, listaClientes, listaMotoristas,
+  onEditarViagem, onEditarDespesa,
 }) {
   const [periodo, setPeriodo]       = useState("mes_atual");
   const [empresa, setEmpresa]       = useState("todas");
@@ -255,6 +256,11 @@ export default function Dashboard({
   const totalDiario = useMemo(
     () => viagensAtivas.reduce((s, v) => s + (v.valor_frete || 0), 0),
     [viagensAtivas]);
+
+  // Mesma ordenação da tabela de viagens: mais recentes primeiro.
+  const despesasDoDiario = useMemo(
+    () => [...despesasFilt].sort((a, b) => b.data.localeCompare(a.data)),
+    [despesasFilt]);
 
   const periodoLabel = rotuloPeriodo(periodo, desde, ate);
 
@@ -552,6 +558,90 @@ export default function Dashboard({
                   <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {brl(totalDiario)}
                   </TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* ── DESPESAS DO FILTRO ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <CardTitle className="text-sm font-semibold">
+              Despesas · {periodoLabel}
+            </CardTitle>
+            <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+              {despesasDoDiario.length} {despesasDoDiario.length === 1 ? "registro" : "registros"}
+            </span>
+          </div>
+          {/* Despesa não tem cliente nem motorista — só empresa e período se aplicam. */}
+          {empresa !== "todas" && (
+            <p className="text-xs text-muted-foreground">{empresa}</p>
+          )}
+        </CardHeader>
+        <CardContent>
+          <Table containerClassName="max-h-[26rem] rounded-md border">
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Empresa</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="w-10 px-1">
+                  <span className="sr-only">Ações</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {despesasDoDiario.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Nenhuma despesa para os filtros selecionados
+                  </TableCell>
+                </TableRow>
+              ) : despesasDoDiario.map((d) => (
+                <TableRow
+                  key={d.id}
+                  onClick={() => onEditarDespesa?.(d)}
+                  className="cursor-pointer">
+                  <TableCell className="whitespace-nowrap tabular-nums">
+                    {new Date(d.data + "T12:00:00").toLocaleDateString("pt-BR")}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{d.empresa || "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {d.categoriasdespesas?.categoria || "—"}
+                  </TableCell>
+                  <TableCell>{d.descricao || "—"}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums whitespace-nowrap">
+                    {brl(d.valor)}
+                  </TableCell>
+                  <TableCell className="w-10 px-1 py-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label={`Editar despesa de ${new Date(d.data + "T12:00:00").toLocaleDateString("pt-BR")}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditarDespesa?.(d);
+                      }}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            {despesasDoDiario.length > 0 && (
+              <TableFooter className="sticky bottom-0 z-10 bg-muted">
+                <TableRow>
+                  <TableCell colSpan={4} className="text-xs">Total do período</TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                    {brl(kpis.despesas)}
+                  </TableCell>
+                  <TableCell className="w-10 px-1" />
                 </TableRow>
               </TableFooter>
             )}

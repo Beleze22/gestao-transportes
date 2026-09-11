@@ -4,13 +4,19 @@ import {
   VIAGEM_VAZIA,
   formularioParaPayload,
   statusAposEdicao,
-  statusPorCompletude,
+  statusParaViagem,
   validarViagem,
 } from "@/lib/viagem";
+import {
+  DESPESA_VAZIA,
+  formularioParaPayloadDespesa,
+  validarDespesa,
+} from "@/lib/despesa";
 
 // Mesmo shape que o buscarDados usa — sem os joins, a linha devolvida por um update
 // perde clientes.nome/motoristas.nome e a tabela do Dashboard passa a mostrar "—".
 const SELECT_VIAGEM = `*, clientes(nome), motoristas(nome), caminhoes(placa)`;
+const SELECT_DESPESA = `*, categoriasdespesas(categoria)`;
 
 // Um update/delete barrado por RLS não vem como erro: o PostgREST responde 200 com
 // lista vazia e error null. Sem esta checagem o app diria "salvo!" sem ter salvo nada.
@@ -29,13 +35,7 @@ export default function useTransporteData() {
 
   const [viagem, setViagem] = useState(VIAGEM_VAZIA);
 
-  const [despesa, setDespesa] = useState({
-    empresa: "",
-    data: "",
-    categoria: "",
-    descricao: "",
-    valor: "",
-  });
+  const [despesa, setDespesa] = useState(DESPESA_VAZIA);
 
   const [listaClientes, setListaClientes] = useState([]);
   const [listaMotoristas, setListaMotoristas] = useState([]);
@@ -109,7 +109,7 @@ export default function useTransporteData() {
     const payload = formularioParaPayload(viagem);
     const { error } = await supabase
       .from("viagens")
-      .insert([{ ...payload, status: statusPorCompletude(payload) }]);
+      .insert([{ ...payload, status: statusParaViagem(payload) }]);
     if (error) throw error;
     await buscarDados({ silencioso: true });
     setViagem(VIAGEM_VAZIA);
@@ -156,7 +156,7 @@ export default function useTransporteData() {
     if (!atual) throw new Error("Viagem não encontrada — ela pode ter sido removida.");
 
     const { data, error } = await supabase
-      .from("viagens").update({ status: statusPorCompletude(atual) }).eq("id", id)
+      .from("viagens").update({ status: statusParaViagem(atual) }).eq("id", id)
       .select(SELECT_VIAGEM).maybeSingle();
     trocarViagemNaLista(exigirUmaLinha(data, error, "reativar a viagem"));
   };
@@ -175,19 +175,43 @@ export default function useTransporteData() {
 
   const handleSalvarDespesa = async (e) => {
     e.preventDefault();
-    if (!despesa.empresa || !despesa.data || !despesa.valor || !despesa.categoria) {
-      throw new Error("Preencha os campos obrigatórios.");
-    }
-    const { error } = await supabase.from("despesas").insert([{
-      empresa: despesa.empresa,
-      data: despesa.data,
-      categoria: despesa.categoria,
-      descricao: despesa.descricao,
-      valor: parseFloat(despesa.valor),
-    }]);
+    validarDespesa(despesa);
+    const { error } = await supabase
+      .from("despesas")
+      .insert([formularioParaPayloadDespesa(despesa)]);
     if (error) throw error;
     await buscarDados({ silencioso: true });
-    setDespesa({ empresa: "", data: "", categoria: "", valor: "", descricao: "" });
+    setDespesa(DESPESA_VAZIA);
+  };
+
+  // --- Edição de despesas ---
+
+  const trocarDespesaNaLista = (atualizada) =>
+    setListaDespesas((prev) => prev.map((d) => (d.id === atualizada.id ? atualizada : d)));
+
+  const handleAtualizarDespesa = async (id, formulario) => {
+    validarDespesa(formulario);
+    const { data, error } = await supabase
+      .from("despesas")
+      .update(formularioParaPayloadDespesa(formulario))
+      .eq("id", id)
+      .select(SELECT_DESPESA)
+      .maybeSingle();
+    trocarDespesaNaLista(exigirUmaLinha(data, error, "salvar a despesa"));
+  };
+
+  // Despesa não tem status, então não existe o meio-termo do cancelamento — excluir é
+  // a única forma de remover, e é definitiva.
+  const excluirDespesa = async (id) => {
+    const { data, error } = await supabase
+      .from("despesas").delete().eq("id", id).select("id");
+    if (error) throw error;
+    if (!data?.length) {
+      throw new Error(
+        "Não foi possível excluir — a despesa pode já ter sido removida, ou o banco não permite esta operação.",
+      );
+    }
+    setListaDespesas((prev) => prev.filter((d) => d.id !== id));
   };
 
   return {
@@ -198,6 +222,7 @@ export default function useTransporteData() {
     listaViagens, listaDespesas, listaCategorias,
     handleSalvarViagem, handleSalvarDespesa,
     handleAtualizarViagem, cancelarViagem, reativarViagem, excluirViagem,
+    handleAtualizarDespesa, excluirDespesa,
     adicionarCliente, adicionarMotorista, adicionarCaminhao, adicionarCategoria,
   };
 }

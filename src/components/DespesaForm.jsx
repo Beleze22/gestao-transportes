@@ -9,13 +9,19 @@ import {
 
 export default function DespesaForm({
   despesa, setDespesa, listaCategorias, onSalvar, onAdicionarCategoria,
+  // Defaults iguais ao comportamento de cadastro, para a aba "Despesa" não mudar.
+  titulo = "Nova Despesa",
+  textoBotao = "Salvar Despesa 💸",
+  salvando = false,
+  onCancelar,
+  className = "border-t-4 border-t-destructive",
 }) {
   const set = (campo) => (val) => setDespesa({ ...despesa, [campo]: val });
 
   return (
-    <Card className="border-t-4 border-t-destructive">
+    <Card className={className}>
       <CardHeader>
-        <CardTitle>Nova Despesa</CardTitle>
+        <CardTitle>{titulo}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSalvar} className="space-y-4">
@@ -65,9 +71,21 @@ export default function DespesaForm({
               onChange={(e) => set("valor")(e.target.value)} required />
           </div>
 
-          <Button type="submit" variant="destructive" className="w-full">
-            Salvar Despesa 💸
-          </Button>
+          {onCancelar ? (
+            <div className="flex gap-2">
+              {/* type="button" é obrigatório: dentro de um <form>, o default é submit. */}
+              <Button type="button" variant="outline" onClick={onCancelar} disabled={salvando}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="destructive" className="flex-1" disabled={salvando}>
+                {salvando ? "Salvando..." : textoBotao}
+              </Button>
+            </div>
+          ) : (
+            <Button type="submit" variant="destructive" className="w-full" disabled={salvando}>
+              {salvando ? "Salvando..." : textoBotao}
+            </Button>
+          )}
         </form>
       </CardContent>
     </Card>
