@@ -1,7 +1,19 @@
 <!doctype html>
-<html lang="en">
+<!--
+  lang="pt-BR" e translate="no" não são detalhe de acessibilidade: são a correção de um
+  bug real. O template do Vite vem com lang="en", e com o conteúdo todo em português o
+  Chrome concluía que a página precisava ser traduzida.
+
+  O tradutor reescreve os nós de texto envolvendo-os em <font>. O React guarda referência
+  aos nós que ele mesmo criou e, na primeira re-renderização, tenta remover um nó que já
+  não está onde foi deixado — "Failed to execute 'removeChild' on 'Node'". Sem error
+  boundary isso derruba a árvore inteira e a tela fica branca. Era o que acontecia ao
+  selecionar qualquer opção de dropdown (a primeira re-renderização depois do carregamento).
+-->
+<html lang="pt-BR" translate="no">
   <head>
     <meta charset="UTF-8" />
+    <meta name="google" content="notranslate" />
     <link
       rel="icon"
       type="image/png"

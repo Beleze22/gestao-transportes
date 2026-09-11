@@ -45,6 +45,13 @@ export default class ErroFatal extends Component {
     const { erro } = this.state;
     const mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
+    // O tradutor do navegador reescreve os nós de texto da página e o React quebra ao
+    // tentar mexer num nó que já não está onde deixou. É a causa mais comum desse erro
+    // específico, e o usuário consegue resolver sozinho em dois cliques — vale dizer
+    // isso antes de pedir a foto.
+    const mensagem = String(erro?.message ?? erro);
+    const ehTradutor = /removeChild|insertBefore|not a child of this node/i.test(mensagem);
+
     // A tela é desenhada para ser FOTOGRAFADA por alguém que não é técnico: a instrução
     // vem antes de tudo, a mensagem do erro é o maior texto da página, e nada tem
     // rolagem própria — numa caixa rolável a foto pegaria só um pedaço.
@@ -63,18 +70,45 @@ export default class ErroFatal extends Component {
           Seus dados estão salvos. Nada foi perdido.
         </p>
 
-        <div
-          style={{
-            background: "#fef3c7",
-            border: "1px solid #fcd34d",
-            borderRadius: "8px",
-            padding: "14px 16px",
-            margin: "0 0 20px",
-            fontSize: "16px",
-            fontWeight: 600,
-          }}>
-          📸 Tire uma foto desta tela inteira e envie para quem cuida do sistema.
-        </div>
+        {ehTradutor ? (
+          <div
+            style={{
+              background: "#dbeafe",
+              border: "1px solid #93c5fd",
+              borderRadius: "8px",
+              padding: "16px",
+              margin: "0 0 20px",
+            }}>
+            <p style={{ margin: "0 0 10px", fontSize: "16px", fontWeight: 600 }}>
+              Isto é o tradutor automático do navegador.
+            </p>
+            <p style={{ margin: "0 0 10px" }}>Para resolver de uma vez:</p>
+            <ol style={{ margin: "0 0 10px", paddingLeft: "22px" }}>
+              <li>Clique com o botão direito em qualquer lugar da página.</li>
+              <li>
+                Escolha <strong>“Nunca traduzir este site”</strong>.
+              </li>
+              <li>Recarregue a página no botão abaixo.</li>
+            </ol>
+            <p style={{ margin: 0, color: "#1e40af" }}>
+              Se não aparecer essa opção, tire uma foto desta tela e envie para quem cuida
+              do sistema.
+            </p>
+          </div>
+        ) : (
+          <div
+            style={{
+              background: "#fef3c7",
+              border: "1px solid #fcd34d",
+              borderRadius: "8px",
+              padding: "14px 16px",
+              margin: "0 0 20px",
+              fontSize: "16px",
+              fontWeight: 600,
+            }}>
+            📸 Tire uma foto desta tela inteira e envie para quem cuida do sistema.
+          </div>
+        )}
 
         <div
           style={{
