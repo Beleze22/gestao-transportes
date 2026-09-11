@@ -22,8 +22,20 @@ function statusPorCompletude(v) {
   return "confirmada";
 }
 
+// [FIX #15] Status considerando também a data. statusPorCompletude é cego a ela: uma
+// viagem completa vira "confirmada", que significa "agendada, vai acontecer". Quando o
+// lançamento é feito depois do fato — o caso normal de quem registra o dia no fim do
+// expediente — isso fica errado até o cron marcarRealizadasPendentes passar na
+// meia-noite seguinte. Aqui a mesma regra é aplicada na hora da gravação.
+export function statusParaViagem(v) {
+  const base = statusPorCompletude(v);
+  if (base === "rascunho") return base;             // incompleta continua rascunho
+  if (!v.data || v.data >= hojeISO()) return base;  // hoje ou futura: agendada
+  return base === "confirmada" ? "concluida" : "realizada_pendente";
+}
+
 export async function criarViagemRascunho(dados) {
-  const status = statusPorCompletude(dados);
+  const status = statusParaViagem(dados);
   const { data, error } = await supabase
     .from("viagens")
     .insert({ ...dados, status })
@@ -54,7 +66,7 @@ export async function atualizarViagem(id, campos) {
           ? mesclado.valor_frete != null && mesclado.valor_motorista != null
             ? "concluida"
             : "realizada_pendente"
-          : statusPorCompletude(mesclado);
+          : statusParaViagem(mesclado);
   }
 
   const { data, error } = await supabase
@@ -108,5 +120,19 @@ export async function marcarRealizadasPendentes() {
     .select("id");
   if (err2) throw err2;
 
-  return [...(concluidas ?? []), ...(pendentes ?? [])];
+  // [FIX #15] Fecha as que já receberam os valores. Sem este passo, uma viagem que caiu
+  // em realizada_pendente por falta de valor ficava presa nesse status para sempre,
+  // mesmo depois de preenchida — os dois passos acima só olham para "confirmada". Havia
+  // 5 viagens de junho/2026 nessa situação, com frete e pagamento preenchidos.
+  const { data: fechadas, error: err3 } = await supabase
+    .from("viagens")
+    .update({ status: "concluida" })
+    .eq("status", "realizada_pendente")
+    .lt("data", hoje)
+    .not("valor_frete", "is", null)
+    .not("valor_motorista", "is", null)
+    .select("id");
+  if (err3) throw err3;
+
+  return [...(concluidas ?? []), ...(pendentes ?? []), ...(fechadas ?? [])];
 }

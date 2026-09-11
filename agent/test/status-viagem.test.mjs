@@ -80,3 +80,40 @@ test("confirmada perde o valor e vira confirmada_sem_valor", async () => {
 test("faltando um dado básico volta a rascunho", async () => {
   assert.equal(await statusApos("confirmada", { motorista_id: null }), "rascunho");
 });
+
+// FIX #15 — o status precisa considerar a data. Lançar hoje uma viagem que já aconteceu
+// não pode marcá-la como "confirmada" (= agendada, vai acontecer) e esperar o cron da
+// meia-noite arrumar.
+const { statusParaViagem } = await import(`${SRC}services/viagens.js`);
+
+const ONTEM = "2020-01-01";
+const FUTURO = "2999-12-31";
+
+test("viagem passada e completa já nasce concluida", () => {
+  assert.equal(
+    statusParaViagem({ ...COMPLETA, data: ONTEM }),
+    "concluida",
+  );
+});
+
+test("viagem passada sem valores nasce realizada_pendente", () => {
+  assert.equal(
+    statusParaViagem({ ...COMPLETA, data: ONTEM, valor_frete: null, valor_motorista: null }),
+    "realizada_pendente",
+  );
+});
+
+test("viagem futura continua confirmada", () => {
+  assert.equal(statusParaViagem({ ...COMPLETA, data: FUTURO }), "confirmada");
+});
+
+test("viagem incompleta continua rascunho, mesmo no passado", () => {
+  assert.equal(
+    statusParaViagem({ ...COMPLETA, data: ONTEM, motorista_id: null }),
+    "rascunho",
+  );
+});
+
+test("sem data não aplica a regra de data", () => {
+  assert.equal(statusParaViagem({ ...COMPLETA, data: null }), "confirmada");
+});
