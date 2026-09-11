@@ -12,6 +12,133 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      Aviso de navegador antigo.
+
+      O Tailwind v4 emite todas as cores como oklch() e usa color-mix() para as
+      opacidades — os dois exigem Chrome/Edge 111+, Safari 16.4+ ou Firefox 128+. Num
+      navegador anterior, as cores não são "aproximadas": cada declaração fica inválida
+      em tempo de cálculo e é descartada, e o site aparece sem estilo nenhum.
+
+      O caso concreto é o Windows 7/8/8.1: o Chrome parou na versão 109 nesses sistemas,
+      duas aquém do necessário. Trocar um componente não resolveria — a limitação está na
+      folha de estilo inteira, não no dropdown.
+
+      Este script é clássico (sem type="module") e usa estilo embutido de propósito: ele
+      precisa funcionar justamente quando o CSS do app não funciona, e em navegadores que
+      ignoram scripts de módulo — nos quais o app nem chega a carregar.
+    -->
+    <script>
+      (function () {
+        var ok =
+          window.CSS &&
+          CSS.supports &&
+          CSS.supports("color", "oklch(0% 0 0)") &&
+          CSS.supports("color", "color-mix(in oklab, red, blue)");
+        if (ok) return;
+
+        var barra = document.createElement("div");
+        barra.setAttribute("role", "alert");
+        barra.style.cssText =
+          "position:fixed;top:0;left:0;right:0;z-index:2147483647;" +
+          "background:#7f1d1d;color:#fff;padding:12px 16px;" +
+          "font:14px/1.5 system-ui,Segoe UI,Arial,sans-serif;text-align:center";
+        barra.innerHTML =
+          "<strong>Seu navegador está desatualizado.</strong> " +
+          "O sistema vai funcionar, mas sem as cores e o layout corretos. " +
+          "Atualize o Chrome, o Edge ou o Firefox para ver a tela como deveria. " +
+          '<button type="button" style="margin-left:12px;background:transparent;' +
+          'border:1px solid #fff;color:#fff;padding:2px 10px;border-radius:4px;' +
+          'cursor:pointer;font:inherit">Fechar</button>';
+
+        barra.getElementsByTagName("button")[0].onclick = function () {
+          barra.parentNode.removeChild(barra);
+        };
+        document.body.appendChild(barra);
+      })();
+    </script>
+
+    <!--
+      Captura os erros que o error boundary do React NÃO alcança: exceções lançadas
+      dentro de manipuladores de evento (um onClick, um onValueChange), promises
+      rejeitadas sem catch, e qualquer coisa que estoure antes do React montar.
+
+      Sem isto, esses casos somem no console — e ninguém abre o console do celular.
+    -->
+    <script>
+      (function () {
+        var mostrado = false;
+
+        function mostrar(titulo, detalhe) {
+          if (mostrado) return; // um erro costuma disparar em cascata; basta o primeiro
+          mostrado = true;
+
+          // Ocupa a tela toda, sem rolagem própria: o diagnóstico chega por foto tirada
+          // por quem não é técnico, e numa caixinha rolável a foto pega só um pedaço.
+          var cx = document.createElement("div");
+          cx.style.cssText =
+            "position:fixed;inset:0;z-index:2147483646;background:#fff;color:#18181b;" +
+            "padding:24px 16px;overflow:auto;" +
+            "font:15px/1.6 system-ui,Segoe UI,Arial,sans-serif";
+
+          var mono = "ui-monospace,Menlo,Consolas,monospace";
+
+          cx.innerHTML =
+            '<div style="max-width:640px;margin:0 auto">' +
+            '<h1 style="margin:0 0 4px;font-size:20px">Algo deu errado nesta tela</h1>' +
+            '<p style="margin:0 0 20px;color:#52525b">Seus dados estão salvos. Nada foi perdido.</p>' +
+            '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;' +
+            'padding:14px 16px;margin:0 0 20px;font-size:16px;font-weight:600">' +
+            "📸 Tire uma foto desta tela inteira e envie para quem cuida do sistema.</div>" +
+            '<div style="border:2px solid #18181b;border-radius:8px;overflow:hidden;margin:0 0 16px">' +
+            '<div style="background:#18181b;color:#fff;padding:6px 12px;letter-spacing:.1em;' +
+            'font:600 11px/1.4 ' + mono + '">MENSAGEM DO ERRO</div>' +
+            '<p style="margin:0;padding:14px 12px;word-break:break-word;' +
+            'font:600 15px/1.45 ' + mono + '" id="erro-msg"></p>' +
+            '<p style="margin:0;padding:10px 12px;border-top:1px solid #e4e4e7;color:#52525b;' +
+            'word-break:break-word;font:11px/1.5 ' + mono + '" id="erro-amb"></p></div>' +
+            '<pre style="font:10px/1.45 ' + mono + ';color:#71717a;white-space:pre-wrap;' +
+            'word-break:break-word;margin:0 0 20px" id="erro-det"></pre>' +
+            '<button type="button" style="font:inherit;padding:10px 18px;border-radius:6px;' +
+            'border:1px solid #18181b;background:#18181b;color:#fff;cursor:pointer">' +
+            "Recarregar a página</button></div>";
+
+          cx.querySelector("#erro-msg").textContent = titulo;
+          cx.querySelector("#erro-amb").textContent =
+            navigator.userAgent + "\n" + new Date().toLocaleString("pt-BR");
+          cx.querySelector("#erro-det").textContent = detalhe;
+          cx.getElementsByTagName("button")[0].onclick = function () {
+            window.location.reload();
+          };
+          document.body.appendChild(cx);
+        }
+
+        window.addEventListener("error", function (e) {
+          // Erro de carregamento de recurso (script, imagem) não tem e.message e
+          // dispara na fase de captura com o elemento como alvo — vale reportar
+          // também, porque um script bloqueado deixa a tela branca do mesmo jeito.
+          if (!e.message && e.target && e.target !== window) {
+            mostrar(
+              "Não foi possível carregar um arquivo do site",
+              (e.target.src || e.target.href || "") +
+                "\n(bloqueador de anúncios, antivírus ou rede podem causar isso)",
+            );
+            return;
+          }
+          mostrar(
+            e.message || "Erro desconhecido",
+            (e.filename || "") + ":" + (e.lineno || "?") + "\n" + ((e.error && e.error.stack) || ""),
+          );
+        }, true);
+
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e.reason;
+          mostrar("Promise rejeitada: " + ((r && r.message) || r), (r && r.stack) || "");
+        });
+      })();
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
