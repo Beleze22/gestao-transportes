@@ -3,7 +3,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { AlertCircle, DollarSign, Pencil, TrendingDown, TrendingUp, Truck } from "lucide-react";
+import {
+  AlertCircle, DollarSign, MessageSquare, Pencil, TrendingDown, TrendingUp, Truck,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,16 +30,30 @@ const PERIODO_OPTIONS = [
 
 const PERSONALIZADO = "personalizado";
 
+// `label` é usado também pela legenda do gráfico de pizza — não pode sair daqui.
+// `ponto` é a cor sólida da bolinha na tabela, onde não há largura para o texto.
 const STATUS_CONFIG = {
-  rascunho:            { label: "Rascunho",   cls: "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100" },
-  confirmada:          { label: "Confirmada",  cls: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100" },
-  confirmada_sem_valor:{ label: "Sem valor",   cls: "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100" },
-  realizada_pendente:  { label: "Pend. valor", cls: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100" },
-  concluida:           { label: "Concluída",   cls: "bg-green-100 text-green-700 border-green-200 hover:bg-green-100" },
-  cancelada:           { label: "Cancelada",   cls: "bg-red-100 text-red-700 border-red-200 hover:bg-red-100" },
+  rascunho:            { label: "Rascunho",   ponto: "bg-gray-400",  cls: "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100" },
+  confirmada:          { label: "Confirmada",  ponto: "bg-blue-500",  cls: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100" },
+  confirmada_sem_valor:{ label: "Sem valor",   ponto: "bg-sky-500",   cls: "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100" },
+  realizada_pendente:  { label: "Pend. valor", ponto: "bg-amber-500", cls: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100" },
+  concluida:           { label: "Concluída",   ponto: "bg-green-500", cls: "bg-green-100 text-green-700 border-green-200 hover:bg-green-100" },
+  cancelada:           { label: "Cancelada",   ponto: "bg-red-500",   cls: "bg-red-100 text-red-700 border-red-200 hover:bg-red-100" },
 };
 
-const PIE_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#8b5cf6", "#ef4444", "#6b7280"];
+// Cor de cada status na pizza. Antes as fatias eram coloridas por ÍNDICE, então a cor
+// de um mesmo status mudava conforme quais status existiam no filtro — "Concluída" saía
+// azul num período e verde em outro. Com a bolinha na tabela usando cor, as duas
+// legendas passariam a contar histórias diferentes na mesma tela.
+const PIE_COLORS = {
+  Rascunho: "#9ca3af",
+  Confirmada: "#3b82f6",
+  "Sem valor": "#0ea5e9",
+  "Pend. valor": "#f59e0b",
+  "Concluída": "#22c55e",
+  Cancelada: "#ef4444",
+};
+const PIE_FALLBACK = "#6b7280";
 
 const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
@@ -126,6 +142,26 @@ function KpiCard({ title, value, icon: Icon, positive = true, sub }) {
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.rascunho;
   return <Badge className={cfg.cls}>{cfg.label}</Badge>;
+}
+
+// Versão compacta para dentro das tabelas, onde a coluna de texto custava largura que
+// falta no celular. No toque não há hover, então o nome vai em title E aria-label — e o
+// estado que mais importa (cancelada) já aparece na linha esmaecida e no valor riscado.
+function StatusPonto({ status }) {
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.rascunho;
+  return (
+    <span
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${cfg.ponto}`}
+      title={cfg.label}
+      role="img"
+      aria-label={cfg.label}
+    />
+  );
+}
+
+// 20% do histórico não tem local nenhum (os registros anteriores ao agente).
+function rotaDaViagem(v) {
+  return [v.local_carregamento, v.local_descarregamento].filter(Boolean).join(" → ");
 }
 
 // ── DASHBOARD ──────────────────────────────────────────────
@@ -342,7 +378,8 @@ export default function Dashboard({
       </Card>
 
       {/* ── KPIs ── */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Sem o lg:, os quatro cartões ficariam 2x2 e enormes nos 1024px do notebook. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard title="Faturamento" value={kpis.faturamento} icon={DollarSign} sub={`${viagensAtivas.length} viagens`} />
         <KpiCard title="Pgto Motoristas" value={kpis.motoristas} icon={Truck} positive={false} />
         <KpiCard title="Outras Despesas" value={kpis.despesas} icon={TrendingDown} positive={false} sub={`${despesasFilt.length} registros`} />
@@ -357,7 +394,8 @@ export default function Dashboard({
               <CardTitle className="text-sm font-semibold">Receita vs Despesas</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+              <div className="h-[200px] lg:h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                   <XAxis dataKey="mes" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -367,6 +405,7 @@ export default function Dashboard({
                   <Bar dataKey="Despesas" fill="#f87171" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
@@ -376,15 +415,19 @@ export default function Dashboard({
                 <CardTitle className="text-sm font-semibold">Status das viagens</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
+                <div className="h-[200px] lg:h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={pieData} cx="50%" cy="45%" outerRadius={65} dataKey="value" labelLine={false}>
-                      {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    <Pie data={pieData} cx="50%" cy="45%" outerRadius="72%" dataKey="value" labelLine={false}>
+                      {pieData.map((d) => (
+                        <Cell key={d.name} fill={PIE_COLORS[d.name] ?? PIE_FALLBACK} />
+                      ))}
                     </Pie>
                     <Tooltip formatter={(v, n) => [v, n]} />
                     <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -485,18 +528,32 @@ export default function Dashboard({
             <p className="text-xs text-muted-foreground">{filtrosAtivos.join(" · ")}</p>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           {/* O teto de altura precisa ficar no container que rola — que é o do próprio
               Table. Num div externo, o cabeçalho fixo se ancoraria no wrapper interno,
-              que não rola, e não grudaria. Sem teto, "Este ano" despeja ~480 linhas. */}
-          <Table containerClassName="max-h-[26rem] rounded-md border">
+              que não rola, e não grudaria. Sem teto, "Este ano" despeja ~480 linhas.
+
+              O padding das células é reduzido no celular: o shadcn usa px-4/p-4, que em
+              7 colunas consome 224px dos ~590px disponíveis — quase metade da largura
+              útil ia embora em espaçamento. */}
+          {viagensDoDiario.length === 0 ? (
+            <p className="rounded-md border py-8 text-center text-sm text-muted-foreground">
+              Nenhuma viagem para os filtros selecionados
+            </p>
+          ) : (
+          <Table
+            containerClassName="max-h-[26rem] lg:max-h-[32rem] rounded-md border"
+            className="[&_th]:px-2 [&_td]:px-2 sm:[&_th]:px-4 sm:[&_td]:px-4">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
                 <TableHead>Data</TableHead>
-                <TableHead>Empresa</TableHead>
+                <TableHead className="w-8 px-1">
+                  <span className="sr-only">Status</span>
+                </TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Motorista</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="hidden sm:table-cell">Motorista</TableHead>
+                <TableHead className="hidden md:table-cell">Empresa</TableHead>
+                <TableHead className="hidden md:table-cell">Rota</TableHead>
                 <TableHead className="text-right">Frete</TableHead>
                 <TableHead className="w-10 px-1">
                   <span className="sr-only">Ações</span>
@@ -504,26 +561,44 @@ export default function Dashboard({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {viagensDoDiario.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Nenhuma viagem para os filtros selecionados
-                  </TableCell>
-                </TableRow>
-              ) : viagensDoDiario.map((v) => {
+              {viagensDoDiario.map((v) => {
                 const cancelada = v.status === "cancelada";
+                const dataBr = new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR");
+                const rota = rotaDaViagem(v);
                 return (
                   <TableRow
                     key={v.id}
                     onClick={() => onEditarViagem?.(v)}
                     className={`cursor-pointer ${cancelada ? "text-muted-foreground" : ""}`}>
                     <TableCell className="whitespace-nowrap tabular-nums">
-                      {new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}
+                      {dataBr}
+                      {/* Só 3 viagens em 507 têm observação — uma coluna fixa ficaria
+                          vazia em 99% das linhas. O ícone custa poucos pixels. */}
+                      {v.observacoes && (
+                        <span title={v.observacoes} className="ml-1 align-middle">
+                          <MessageSquare className="inline h-3 w-3 text-muted-foreground" />
+                        </span>
+                      )}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{v.empresa || "—"}</TableCell>
+                    <TableCell className="w-8 px-1">
+                      <StatusPonto status={v.status} />
+                    </TableCell>
                     <TableCell>{v.clientes?.nome || "—"}</TableCell>
-                    <TableCell>{v.motoristas?.nome || "—"}</TableCell>
-                    <TableCell><StatusBadge status={v.status} /></TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {v.motoristas?.nome || "—"}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell whitespace-nowrap">
+                      {v.empresa || "—"}
+                    </TableCell>
+                    {/* p90 é 30 caracteres, mas há registros de 64 — trunca e mostra
+                        o texto inteiro no hover, sem alargar a coluna. */}
+                    <TableCell className="hidden md:table-cell">
+                      {rota ? (
+                        <span className="block max-w-[20rem] truncate" title={rota}>
+                          {rota}
+                        </span>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell
                       className={`text-right font-medium tabular-nums whitespace-nowrap ${
                         cancelada ? "line-through" : ""
@@ -535,7 +610,7 @@ export default function Dashboard({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        aria-label={`Editar viagem de ${new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}`}
+                        aria-label={`Editar viagem de ${dataBr}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onEditarViagem?.(v);
@@ -549,19 +624,28 @@ export default function Dashboard({
             </TableBody>
             {viagensDoDiario.length > 0 && (
               <TableFooter className="sticky bottom-0 z-10 bg-muted">
+                {/* Uma célula por coluna, repetindo as classes de breakpoint. Com
+                    colSpan fixo a contagem quebraria nos tamanhos em que há menos
+                    colunas, e o total apareceria sob a coluna errada. */}
                 <TableRow>
-                  <TableCell colSpan={6} className="text-xs">
+                  <TableCell colSpan={2} className="text-xs">
                     Faturamento do período
                     {viagensDoDiario.length !== viagensAtivas.length &&
                       " (sem as canceladas)"}
                   </TableCell>
+                  <TableCell />
+                  <TableCell className="hidden sm:table-cell" />
+                  <TableCell className="hidden md:table-cell" />
+                  <TableCell className="hidden md:table-cell" />
                   <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {brl(totalDiario)}
                   </TableCell>
+                  <TableCell className="w-10 px-1" />
                 </TableRow>
               </TableFooter>
             )}
           </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -581,12 +665,19 @@ export default function Dashboard({
             <p className="text-xs text-muted-foreground">{empresa}</p>
           )}
         </CardHeader>
-        <CardContent>
-          <Table containerClassName="max-h-[26rem] rounded-md border">
+        <CardContent className="px-3 sm:px-6">
+          {despesasDoDiario.length === 0 ? (
+            <p className="rounded-md border py-8 text-center text-sm text-muted-foreground">
+              Nenhuma despesa para os filtros selecionados
+            </p>
+          ) : (
+          <Table
+            containerClassName="max-h-[26rem] lg:max-h-[32rem] rounded-md border"
+            className="[&_th]:px-2 [&_td]:px-2 sm:[&_th]:px-4 sm:[&_td]:px-4">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
                 <TableHead>Data</TableHead>
-                <TableHead>Empresa</TableHead>
+                <TableHead className="hidden md:table-cell">Empresa</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
@@ -596,13 +687,7 @@ export default function Dashboard({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {despesasDoDiario.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    Nenhuma despesa para os filtros selecionados
-                  </TableCell>
-                </TableRow>
-              ) : despesasDoDiario.map((d) => (
+              {despesasDoDiario.map((d) => (
                 <TableRow
                   key={d.id}
                   onClick={() => onEditarDespesa?.(d)}
@@ -610,7 +695,9 @@ export default function Dashboard({
                   <TableCell className="whitespace-nowrap tabular-nums">
                     {new Date(d.data + "T12:00:00").toLocaleDateString("pt-BR")}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{d.empresa || "—"}</TableCell>
+                  <TableCell className="hidden md:table-cell whitespace-nowrap">
+                    {d.empresa || "—"}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {d.categoriasdespesas?.categoria || "—"}
                   </TableCell>
@@ -637,7 +724,10 @@ export default function Dashboard({
             {despesasDoDiario.length > 0 && (
               <TableFooter className="sticky bottom-0 z-10 bg-muted">
                 <TableRow>
-                  <TableCell colSpan={4} className="text-xs">Total do período</TableCell>
+                  <TableCell className="text-xs">Total do período</TableCell>
+                  <TableCell className="hidden md:table-cell" />
+                  <TableCell />
+                  <TableCell />
                   <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {brl(kpis.despesas)}
                   </TableCell>
@@ -646,6 +736,7 @@ export default function Dashboard({
               </TableFooter>
             )}
           </Table>
+          )}
         </CardContent>
       </Card>
     </div>

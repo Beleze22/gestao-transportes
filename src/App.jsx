@@ -256,7 +256,10 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-2xl px-4 py-6 pb-20">
+      {/* A largura deixa de ser teto global e vira escolha de cada aba: o Dashboard
+          aproveita a tela do notebook, e os formulários continuam estreitos logo abaixo
+          (um formulário de uma coluna esticado em 1024px fica ruim de usar). */}
+      <div className="mx-auto max-w-2xl lg:max-w-5xl px-4 py-6 pb-20">
         <header className="mb-6 rounded-xl bg-brand-green px-6 py-4 flex items-center justify-center gap-4">
           <img
             src="/rohan-brasao-transparente.png"
@@ -283,7 +286,7 @@ function App() {
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="viagem">
+          <TabsContent value="viagem" className="mx-auto max-w-2xl">
             <ViagemForm
               viagem={viagem}
               setViagem={setViagem}
@@ -297,7 +300,7 @@ function App() {
             />
           </TabsContent>
 
-          <TabsContent value="despesa">
+          <TabsContent value="despesa" className="mx-auto max-w-2xl">
             <DespesaForm
               despesa={despesa}
               setDespesa={setDespesa}
