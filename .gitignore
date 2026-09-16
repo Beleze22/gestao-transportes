@@ -24,6 +24,9 @@ dist-ssr
 src/senha.txt
 *.txt
 
+# Backups de dados gerados antes de migrations
+backup-*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

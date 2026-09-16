@@ -1,4 +1,10 @@
 -- Migration: corrige datas com ano corrompido e o status legado das viagens
+--
+-- APLICADA em 16/09/2026, via API REST com a chave secreta (não pelo SQL Editor), com
+-- backup do estado anterior das 507 linhas em backup-003-viagens.json na raiz do
+-- projeto (fora do git). Afetou 376 linhas no passo 2 e 3 no passo 1, como previsto.
+-- O script é idempotente: rodar de novo não encontra mais nenhuma linha.
+--
 -- Rode este script inteiro no Supabase Dashboard -> SQL Editor -> New query -> Run
 --
 -- Contexto: a migration 001 fez `add column if not exists status text default 'rascunho'`
