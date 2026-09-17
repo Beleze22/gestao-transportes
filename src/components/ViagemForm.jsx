@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { hojeISO } from "@/lib/campos";
 
 export default function ViagemForm({
   viagem,
@@ -75,6 +76,15 @@ export default function ViagemForm({
               onChange={(e) => set("data")(e.target.value)}
               required
             />
+            {/* O campo já vem com hoje, mas só 45% das viagens são lançadas no mesmo dia
+                (outras 21% são da véspera) — errar a data desloca faturamento de mês. A
+                condição é factual, então a nota continua verdadeira mesmo quando a pessoa
+                escolhe hoje de propósito; não precisa rastrear se o campo foi tocado. */}
+            {viagem.data === hojeISO() && (
+              <p className="text-xs text-muted-foreground">
+                Usando a data de hoje — troque se a viagem foi em outro dia.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">

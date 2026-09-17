@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import {
-  VIAGEM_VAZIA,
+  viagemVazia,
   formularioParaPayload,
   statusAposEdicao,
   statusParaViagem,
   validarViagem,
 } from "@/lib/viagem";
 import {
-  DESPESA_VAZIA,
+  despesaVazia,
   formularioParaPayloadDespesa,
   validarDespesa,
 } from "@/lib/despesa";
@@ -33,9 +33,9 @@ function exigirUmaLinha(data, error, acao) {
 export default function useTransporteData() {
   const [loading, setLoading] = useState(true);
 
-  const [viagem, setViagem] = useState(VIAGEM_VAZIA);
+  const [viagem, setViagem] = useState(viagemVazia);
 
-  const [despesa, setDespesa] = useState(DESPESA_VAZIA);
+  const [despesa, setDespesa] = useState(despesaVazia);
 
   const [listaClientes, setListaClientes] = useState([]);
   const [listaMotoristas, setListaMotoristas] = useState([]);
@@ -112,7 +112,7 @@ export default function useTransporteData() {
       .insert([{ ...payload, status: statusParaViagem(payload) }]);
     if (error) throw error;
     await buscarDados({ silencioso: true });
-    setViagem(VIAGEM_VAZIA);
+    setViagem(viagemVazia());
   };
 
   // --- Edição de viagens ---
@@ -181,7 +181,7 @@ export default function useTransporteData() {
       .insert([formularioParaPayloadDespesa(despesa)]);
     if (error) throw error;
     await buscarDados({ silencioso: true });
-    setDespesa(DESPESA_VAZIA);
+    setDespesa(despesaVazia());
   };
 
   // --- Edição de despesas ---

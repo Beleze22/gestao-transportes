@@ -7,20 +7,29 @@ import { texto, numero, horaCurta, hojeISO } from "./campos.js";
 // porque o caminho de edição precisa exatamente da mesma tradução — e duas cópias
 // da mesma regra divergem com o tempo (foi o que aconteceu no agente, FIX #7/#12).
 
-export const VIAGEM_VAZIA = {
-  empresa: "",
-  data: "",
-  cliente_id: "",
-  motorista_id: "",
-  caminhao_id: "",
-  valorFrete: "",
-  valorMotorista: "",
-  localCarregamento: "",
-  horarioCarregamento: "",
-  localDescarregamento: "",
-  horarioDescarregamento: "",
-  observacoes: "",
-};
+// Função, e não constante, pelo mesmo motivo de despesaVazia(): uma constante de módulo
+// congelaria a data no carregamento e a aba deixada aberta atravessaria a meia-noite com
+// a data de ontem.
+//
+// Aqui o padrão acerta menos que em despesa (45% das viagens são lançadas no mesmo dia,
+// outras 21% no dia seguinte), por isso o formulário mostra um aviso enquanto a data for
+// a de hoje — errar a data de uma viagem desloca faturamento de mês.
+export function viagemVazia() {
+  return {
+    empresa: "",
+    data: hojeISO(),
+    cliente_id: "",
+    motorista_id: "",
+    caminhao_id: "",
+    valorFrete: "",
+    valorMotorista: "",
+    localCarregamento: "",
+    horarioCarregamento: "",
+    localDescarregamento: "",
+    horarioDescarregamento: "",
+    observacoes: "",
+  };
+}
 
 // Linha do banco -> estado do formulário. Tudo sai como string: um null num input
 // controlado faz o React trocar o campo para não-controlado no meio da vida dele.

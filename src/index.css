@@ -76,7 +76,13 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  input, select, textarea {
+  /* Os campos de data ficam de fora desta regra de propósito. O -webkit-text-fill-color
+     e o opacity: 1 cascateiam para os segmentos do shadow DOM do input de data
+     (::-webkit-datetime-edit-*), e o WebKit desenha o placeholder "dd/mm/aaaa" com
+     contraste reduzido justamente para sinalizar que nada foi escolhido. Forçar cor
+     sólida apagava essa pista: no Safari um campo vazio ficava idêntico a um preenchido,
+     e o envio era barrado pela validação nativa sem que a tela desse qualquer indício. */
+  input:not([type="date"]), select, textarea {
     color: #1f2937 !important;
     background-color: #ffffff !important;
     -webkit-text-fill-color: #1f2937 !important;
@@ -88,7 +94,11 @@
     -webkit-text-fill-color: #6b7280 !important;
   }
   input[type="date"] {
+    color: #1f2937;
+    background-color: #ffffff;
     min-height: 44px;
+    /* O -webkit-appearance: none veio de uma correção para iPhone; mexer nele pode
+       regredir o aparelho principal, então fica como está. */
     -webkit-appearance: none;
     appearance: none;
     display: block;
