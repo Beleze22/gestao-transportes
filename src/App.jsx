@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Toaster, toast } from "sonner";
+import { LogOut } from "lucide-react";
 import useTransporteData from "@/hooks/useTransporteData";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ViagemForm from "@/components/ViagemForm";
 import DespesaForm from "@/components/DespesaForm";
@@ -10,7 +12,8 @@ import ModalEditarViagem from "@/components/ModalEditarViagem";
 import ModalEditarDespesa from "@/components/ModalEditarDespesa";
 import ModalConfirmacao from "@/components/ModalConfirmacao";
 
-function App() {
+// `sessao` e `onSair` vêm do PortaoSessao — este componente só é montado com sessão ativa.
+function App({ sessao, onSair }) {
   const {
     loading,
     viagem,
@@ -260,22 +263,43 @@ function App() {
           aproveita a tela do notebook, e os formulários continuam estreitos logo abaixo
           (um formulário de uma coluna esticado em 1024px fica ruim de usar). */}
       <div className="mx-auto max-w-2xl lg:max-w-5xl px-4 py-6 pb-20">
-        <header className="mb-6 rounded-xl bg-brand-green px-6 py-4 flex items-center justify-center gap-4">
-          <img
-            src="/rohan-brasao-transparente.png"
-            alt="Rohan Transportes"
-            className="h-14 w-14 object-contain flex-none"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-          <div>
-            <p className="text-brand-gold font-bold text-xl tracking-widest uppercase leading-tight">
-              Rohan Transportes
-            </p>
-            <p className="text-brand-gold/60 text-xs tracking-[0.3em] uppercase mt-0.5">
-              Sistema de Gestão
-            </p>
+        {/* O Sair fica aqui, acima das Tabs, para estar visível nas três. No computador
+            ele é fixado à direita e a marca continua centralizada; no celular vira uma
+            segunda linha, porque lado a lado a marca quebraria em três linhas. A spec 04
+            move esta ação para o rodapé do menu lateral. */}
+        <header className="mb-6 rounded-xl bg-brand-green px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:relative items-center justify-center gap-3 sm:gap-4">
+          <div className="flex items-center justify-center gap-4">
+            <img
+              src="/rohan-brasao-transparente.png"
+              alt="Rohan Transportes"
+              className="h-14 w-14 object-contain flex-none"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+            <div>
+              <p className="text-brand-gold font-bold text-xl tracking-widest uppercase leading-tight">
+                Rohan Transportes
+              </p>
+              <p className="text-brand-gold/60 text-xs tracking-[0.3em] uppercase mt-0.5">
+                Sistema de Gestão
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 sm:absolute sm:right-4 sm:top-1/2 sm:-translate-y-1/2">
+            <span className="hidden md:block max-w-40 truncate text-xs text-brand-gold/60">
+              {sessao?.user?.email}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onSair}
+              aria-label="Sair do sistema"
+              className="h-11 px-3 border-brand-gold/40 bg-transparent text-brand-gold hover:bg-brand-gold/10 hover:text-brand-gold">
+              <LogOut aria-hidden="true" />
+              Sair
+            </Button>
           </div>
         </header>
 

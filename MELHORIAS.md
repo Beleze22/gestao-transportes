@@ -2,7 +2,9 @@
 
 ## Segurança
 
-- [ ] **RLS / autenticação no Supabase** — o app web usa a chave `anon` sem login e as tabelas `viagens`/`despesas` estão com acesso aberto: qualquer pessoa com a URL do Netlify pode ler e alterar os dados (que são reais, ainda que o projeto seja de aprendizagem). Decisão de jul/2026: aceitar o risco por enquanto. Quando implementar: Supabase Auth (login simples) + políticas RLS por tabela. A tabela `conversas` já está protegida.
+- [x] **RLS / autenticação no Supabase** (spec 01, set/2026) — era o risco aceito em jul/2026: o app web usava a chave `anon` sem login e as seis tabelas antigas tinham policy aberta para o papel `public`, então qualquer pessoa com a URL do Netlify lia e alterava dados reais. Agora a web exige sessão do Supabase Auth (`src/components/PortaoSessao.jsx`, acima do `App`, para que nenhuma consulta saia sem sessão) e a migration `004_login_gerentes.sql` deixa nas seis tabelas uma única policy "gerentes autenticados", só para `authenticated`. O agente não mudou: a chave secreta ignora RLS.
+  Ficou de fora, de propósito: recuperação de senha pela tela (é feita no painel do Supabase), perfis ou permissões diferentes entre gerentes (todos podem tudo, daí o `using (true)`), e policies para `motoristas_apelidos`, `conversas` e `config_notificacoes` — a web não as usa e elas seguem alcançáveis só pela chave secreta.
+  Duas coisas que passam a ser pré-condição permanente: **cadastro público desligado** no painel (com ele ligado, qualquer pessoa cria conta pela API com a chave do bundle e volta a ter acesso total) e `SUPABASE_SERVICE_KEY` no Railway sendo de fato uma `sb_secret_…`.
 - [x] **Endpoints `/test` com secret** — exigem header `x-test-secret` (env `TEST_ENDPOINT_SECRET` no Railway); desabilitados sem a env var.
 
 ## Infraestrutura / DevOps
@@ -52,8 +54,11 @@ Pendentes:
 - [x] **Escritas exigem uma linha de retorno** — um `update`/`delete` barrado por RLS responde `200` com lista vazia e `error: null`. Sem a checagem, o app confirmaria "salvo!" sem ter salvo. Ver `exigirUmaLinha` em `useTransporteData.js`.
 - [x] **`buscarDados({ silencioso })`** — o spinner de tela cheia desmontava a árvore inteira a cada regravação; como as `Tabs` são não-controladas, isso jogava o usuário de volta para a aba "Viagem" e zerava os filtros do Dashboard. Agora só a carga inicial mostra spinner.
 
+- [x] **Login e portão de sessão** (spec 01, set/2026) — tela de login com e-mail e senha (`Login.jsx`, do protótipo `docs/design/prototipo/Login.dc.html`), sessão em `useSessao.js` e botão Sair no cabeçalho. O portão fica acima do `App` porque `useTransporteData` dispara `buscarDados()` na montagem: sem sessão o `App` não é montado, e sair desmonta tudo — é o que apaga viagens e despesas da memória, sem limpeza manual.
+
 Pendentes:
 
+- [ ] **Sair ainda está no cabeçalho** — a spec 04 move para o rodapé do menu lateral, junto com a rota `/entrar`. Enquanto isso, o botão convive com a marca no cabeçalho verde, em duas linhas no celular.
 - [ ] **Concorrência entre o site e o agente** — não há trava nem coluna de versão em `viagens`. Se você editar no site enquanto o bot altera a mesma viagem, o último a gravar vence, sem aviso. Aceitável com um operador só; o caminho seria `atualizado_em` + `.eq()` na condição do update, devolvendo "alterada em outro lugar, recarregue".
 - [ ] **Exclusão sem trilha de auditoria** — um `delete` não deixa registro em lugar nenhum, e não há backup point-in-time no plano free do Supabase. É por isso que a exclusão está escondida atrás do cancelamento.
 - [ ] **Componentes órfãos** — `DiarioViagens`, `FiltrosRelatorio`, `ResumoFinanceiro`, `TabelasRelatorio`, `TabNav` e `Toast` não são importados por ninguém desde a migração para Tailwind/shadcn. Remover.
