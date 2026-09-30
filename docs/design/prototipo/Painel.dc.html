@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Painel — computador</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#141a15;background:#f7f9f7}
+a{color:#8c5f00}a:hover{color:#6b4800}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1500px; display: flex; background: #f7f9f7; overflow: hidden">
+<nav aria-label="Menu principal" style="width: 68px; flex-shrink: 0; background: #0b200f; display: flex; flex-direction: column; align-items: center; padding: 14px 0 16px; gap: 4px; box-sizing: border-box">
+<img src="/_blob/f95f8c062b92f0299cdaad1cd0c7614d" alt="Rohan Transportes" style="width: 40px; height: 40px; object-fit: contain; margin-bottom: 14px">
+<a href="#" aria-label="Nova viagem" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"></path><path d="M15 18H9"></path><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"></path><circle cx="17" cy="18" r="2"></circle><circle cx="7" cy="18" r="2"></circle></svg></a>
+<a href="#" aria-label="Nova despesa" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 17.5v-11"></path></svg></a>
+<a href="#" aria-label="Painel" aria-current="page" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #1b351f; color: #ce911b; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg></a>
+<div style="width: 36px; height: 1px; background: #24402a; margin: 8px 0"></div>
+<a href="#" aria-label="A faturar" style="position: relative; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg><span style="position: absolute; top: 3px; right: 1px; min-width: 18px; height: 16px; border-radius: 8px; background: #ce911b; color: #0b200f; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-sizing: border-box">15</span></a>
+<a href="#" aria-label="Ordens" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg></a>
+<a href="#" aria-label="Legado" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg></a>
+<a href="#" aria-label="Entre empresas" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg></a>
+<div style="flex-grow: 1"></div>
+<a href="#" aria-label="Alíquotas" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5 5 19"></path><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg></a>
+<a href="#" aria-label="Sair" style="width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #b9c7bb; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+<button type="button" aria-label="Expandir menu" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid #24402a; background: transparent; color: #b9c7bb; display: flex; align-items: center; justify-content: center; margin-top: 6px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg></button>
+</nav>
+<main style="flex-grow: 1; padding: 32px 40px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; overflow: hidden; font-variant-numeric: tabular-nums">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #0b200f">Painel</h1>
+<div style="display: flex; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px"><label for="p-periodo" style="font-size: 12px; color: #606560">Período</label><select id="p-periodo" style="width: 170px; height: 38px; border: 1px solid #dbdfdb; border-radius: 8px; padding: 0 10px; font-size: 14px; font-family: inherit; background: #ffffff"><option>Últimos 3 meses</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><label for="p-empresa" style="font-size: 12px; color: #606560">Empresa</label><select id="p-empresa" style="width: 150px; height: 38px; border: 1px solid #dbdfdb; border-radius: 8px; padding: 0 10px; font-size: 14px; font-family: inherit; background: #ffffff"><option>Todas</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><label for="p-cliente" style="font-size: 12px; color: #606560">Cliente</label><select id="p-cliente" style="width: 150px; height: 38px; border: 1px solid #dbdfdb; border-radius: 8px; padding: 0 10px; font-size: 14px; font-family: inherit; background: #ffffff"><option>Todos</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><label for="p-mot" style="font-size: 12px; color: #606560">Motorista</label><select id="p-mot" style="width: 150px; height: 38px; border: 1px solid #dbdfdb; border-radius: 8px; padding: 0 10px; font-size: 14px; font-family: inherit; background: #ffffff"><option>Todos</option></select></div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px"><div style="font-size: 13px; color: #606560">Faturamento</div><div style="font-size: 24px; font-weight: 700; color: #0b200f; margin-top: 6px">R$ 112.400,00</div><div style="font-size: 12px; color: #606560; margin-top: 4px">128 viagens</div></section>
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px"><div style="font-size: 13px; color: #606560">Pagamento a motoristas</div><div style="font-size: 24px; font-weight: 700; margin-top: 6px">R$ 33.100,00</div><div style="font-size: 12px; color: #606560; margin-top: 4px">29% do faturamento</div></section>
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px"><div style="font-size: 13px; color: #606560">Outras despesas</div><div style="font-size: 24px; font-weight: 700; margin-top: 6px">R$ 27.900,00</div><div style="font-size: 12px; color: #606560; margin-top: 4px">88 registros</div></section>
+<section style="background: #1b351f; border: 1px solid #1b351f; border-radius: 12px; padding: 18px 20px"><div style="font-size: 13px; color: #b9c7bb">Lucro líquido</div><div style="font-size: 24px; font-weight: 700; color: #e9b44c; margin-top: 6px">R$ 51.400,00</div><div style="font-size: 12px; color: #b9c7bb; margin-top: 4px">46% do faturamento</div></section>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px">
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Receita e despesas por mês</h2><div style="display: flex; gap: 16px; font-size: 12px; color: #606560"><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #ce911b"></span>Faturamento</span><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #9e3a31"></span>Despesas</span></div></div>
+<svg width="700" height="236" viewBox="0 0 700 236" role="img" aria-label="Faturamento de 36,2, 37,6 e 38,6 mil reais em agosto, setembro e outubro; despesas de 9,1, 9,3 e 9,5 mil">
+<g stroke="#eef0ee" stroke-width="1"><line x1="70" y1="20" x2="690" y2="20"></line><line x1="70" y1="65" x2="690" y2="65"></line><line x1="70" y1="110" x2="690" y2="110"></line><line x1="70" y1="155" x2="690" y2="155"></line><line x1="70" y1="200" x2="690" y2="200" stroke="#c4cac4"></line></g>
+<g font-size="11" fill="#606560" text-anchor="end"><text x="62" y="24">R$ 40 mil</text><text x="62" y="69">R$ 30 mil</text><text x="62" y="114">R$ 20 mil</text><text x="62" y="159">R$ 10 mil</text><text x="62" y="204">0</text></g>
+<rect x="128" y="37.1" width="44" height="162.9" rx="4" fill="#ce911b"></rect><rect x="178" y="159.05" width="44" height="40.95" rx="4" fill="#9e3a31"></rect>
+<rect x="338" y="30.8" width="44" height="169.2" rx="4" fill="#ce911b"></rect><rect x="388" y="158.15" width="44" height="41.85" rx="4" fill="#9e3a31"></rect>
+<rect x="548" y="26.3" width="44" height="173.7" rx="4" fill="#ce911b"></rect><rect x="598" y="157.25" width="44" height="42.75" rx="4" fill="#9e3a31"></rect>
+<g font-size="12" fill="#3d423d" text-anchor="middle"><text x="175" y="222">agosto</text><text x="385" y="222">setembro</text><text x="595" y="222">outubro</text></g>
+</svg>
+</section>
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Situação das viagens</h2>
+<div style="display: flex; align-items: center; gap: 20px">
+<svg width="160" height="160" viewBox="0 0 160 160" role="img" aria-label="118 concluídas, 6 aguardando valor, 4 confirmadas, 3 canceladas">
+<g transform="rotate(-90 80 80)" fill="none" stroke-width="22">
+<circle cx="80" cy="80" r="60" stroke="#1b351f" stroke-dasharray="339.6 376.99"></circle>
+<circle cx="80" cy="80" r="60" stroke="#ce911b" stroke-dasharray="17.27 376.99" stroke-dashoffset="-339.6"></circle>
+<circle cx="80" cy="80" r="60" stroke="#8fb596" stroke-dasharray="11.51 376.99" stroke-dashoffset="-356.87"></circle>
+<circle cx="80" cy="80" r="60" stroke="#c4cac4" stroke-dasharray="8.63 376.99" stroke-dashoffset="-368.38"></circle>
+</g>
+<text x="80" y="80" text-anchor="middle" font-size="22" font-weight="700" fill="#0b200f">131</text><text x="80" y="98" text-anchor="middle" font-size="11" fill="#606560">viagens</text>
+</svg>
+<div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #1b351f"></span>Concluídas <strong style="margin-left: 4px">118</strong></span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #ce911b"></span>Aguardando valor <strong style="margin-left: 4px">6</strong></span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #8fb596"></span>Confirmadas <strong style="margin-left: 4px">4</strong></span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #c4cac4"></span>Canceladas <strong style="margin-left: 4px">3</strong></span>
+</div>
+</div>
+</section>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px">
+<h2 style="margin: 0 0 8px; font-size: 15px; font-weight: 600">Principais clientes</h2>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px"><span>Studio Palco</span><span style="font-weight: 600">R$ 18.900,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Arena Eventos</span><span style="font-weight: 600">R$ 15.300,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Grupo Cena</span><span style="font-weight: 600">R$ 12.100,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Casa Montagem</span><span style="font-weight: 600">R$ 9.800,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Palco Norte</span><span style="font-weight: 600">R$ 8.450,00</span></div>
+</section>
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px">
+<h2 style="margin: 0 0 8px; font-size: 15px; font-weight: 600">Motoristas</h2>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px"><span>Robinho</span><span style="color: #606560">31 viagens</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Nego</span><span style="color: #606560">27 viagens</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Eder</span><span style="color: #606560">22 viagens</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Carlão</span><span style="color: #606560">18 viagens</span></div>
+</section>
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; padding: 18px 20px">
+<h2 style="margin: 0 0 8px; font-size: 15px; font-weight: 600">Despesas por categoria</h2>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px"><span>Diesel</span><span style="font-weight: 600; color: #9e3a31">R$ 14.200,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Manutenção</span><span style="font-weight: 600; color: #9e3a31">R$ 5.100,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Imposto</span><span style="font-weight: 600; color: #9e3a31">R$ 4.300,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Sem Parar</span><span style="font-weight: 600; color: #9e3a31">R$ 1.900,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Estacionamento</span><span style="font-weight: 600; color: #9e3a31">R$ 1.600,00</span></div>
+<div style="display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-top: 1px solid #eef0ee"><span>Seguro</span><span style="font-weight: 600; color: #9e3a31">R$ 800,00</span></div>
+</section>
+</div>
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #dbdfdb; background: #fdf7ea">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span style="display: inline-block; padding: 2px 10px; border-radius: 999px; background: #ce911b; color: #020c04; font-size: 12px; font-weight: 700">6</span>Aguardando valor</h2>
+<a href="#" style="font-size: 13px">Ver as 6</a>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; font-size: 14px"><span>14/10, Grupo Cena, Eder, TransBeleze</span><span style="color: #8c5f00; font-size: 13px">Falta frete e pagamento</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; font-size: 14px; border-top: 1px solid #eef0ee"><span>13/10, Arena Eventos, Carlão, Rohan</span><span style="color: #8c5f00; font-size: 13px">Falta pagamento do motorista</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; font-size: 14px; border-top: 1px solid #eef0ee"><span>10/10, Palco Norte, Robinho, Rohan</span><span style="color: #8c5f00; font-size: 13px">Falta pagamento do motorista</span></div>
+</section>
+<section style="background: #ffffff; border: 1px solid #dbdfdb; border-radius: 12px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #dbdfdb">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Viagens dos últimos 3 meses</h2>
+<div role="group" aria-label="Alternar lista" style="display: flex; gap: 6px"><button type="button" aria-pressed="true" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #1b351f; background: #1b351f; color: #ffffff; font-size: 13px; font-family: inherit">Viagens</button><button type="button" aria-pressed="false" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #dbdfdb; background: #ffffff; color: #141a15; font-size: 13px; font-family: inherit">Despesas</button></div>
+</div>
+<table style="width: 100%; border-collapse: collapse; font-size: 14px">
+<thead><tr style="background: #eef3ef; color: #606560; text-align: left"><th style="padding: 10px 20px; font-size: 12px; font-weight: 600">Data</th><th style="padding: 10px 12px; font-size: 12px; font-weight: 600">Cliente</th><th style="padding: 10px 12px; font-size: 12px; font-weight: 600">Motorista</th><th style="padding: 10px 12px; font-size: 12px; font-weight: 600">Empresa</th><th style="padding: 10px 12px; font-size: 12px; font-weight: 600">Trajeto</th><th style="padding: 10px 12px; font-size: 12px; font-weight: 600">Financeiro</th><th style="padding: 10px 20px; font-size: 12px; font-weight: 600; text-align: right">Frete</th></tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #eef0ee"><td style="padding: 12px 20px">15/10</td><td style="padding: 12px">Arena Eventos</td><td style="padding: 12px">Robinho</td><td style="padding: 12px">Rohan</td><td style="padding: 12px; color: #606560">Galpão → Expo Center Norte</td><td style="padding: 12px"><span style="font-size: 12px; font-weight: 600; color: #3d423d">A faturar</span></td><td style="padding: 12px 20px; text-align: right">R$ 800,00</td></tr>
+<tr style="border-top: 1px solid #eef0ee"><td style="padding: 12px 20px">05/10</td><td style="padding: 12px">Studio Palco</td><td style="padding: 12px">Nego</td><td style="padding: 12px">TransBeleze</td><td style="padding: 12px; color: #606560">São Paulo Expo → Galpão</td><td style="padding: 12px"><span style="font-size: 12px; font-weight: 600; color: #1b351f">Recebida #12</span></td><td style="padding: 12px 20px; text-align: right">R$ 650,00</td></tr>
+<tr style="border-top: 1px solid #eef0ee"><td style="padding: 12px 20px">03/10</td><td style="padding: 12px">Arena Eventos</td><td style="padding: 12px">Eder</td><td style="padding: 12px">Rohan</td><td style="padding: 12px; color: #606560">Galpão → Pro Magno</td><td style="padding: 12px"><span style="font-size: 12px; font-weight: 600; color: #8a1f15">Faturada #11, vencida</span></td><td style="padding: 12px 20px; text-align: right">R$ 950,00</td></tr>
+<tr style="border-top: 1px solid #eef0ee"><td style="padding: 12px 20px">22/09</td><td style="padding: 12px">Arena Eventos</td><td style="padding: 12px">Robinho</td><td style="padding: 12px">Rohan</td><td style="padding: 12px; color: #606560">Galpão → Transamerica Expo</td><td style="padding: 12px"><span style="font-size: 12px; font-weight: 600; color: #606560">Legado a conferir</span></td><td style="padding: 12px 20px; text-align: right">R$ 950,00</td></tr>
+</tbody>
+</table>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
