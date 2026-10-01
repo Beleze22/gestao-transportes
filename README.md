@@ -106,7 +106,7 @@ arquivo diz como aplicar.
 | `001_agente_whatsapp.sql` | Campos de logística e `status` em `viagens`; cria `conversas` e `config_notificacoes` | aplicada |
 | `002_multiempresa_apelidos.sql` | `empresa` passa a aceitar nulo; cria `motoristas_apelidos` | aplicada |
 | `003_corrigir_status_legado.sql` | Corrige 3 datas com ano corrompido e recalcula o status de 376 viagens legadas | aplicada em 16/09/2026 |
-| `004_login_gerentes.sql` | Fecha as seis tabelas antigas para o papel `anon`: uma policy "gerentes autenticados" em cada, só para `authenticated` | **a aplicar** — depende do login já estar em produção |
+| `004_login_gerentes.sql` | Fecha as seis tabelas antigas para o papel `anon`: uma policy "gerentes autenticados" em cada, só para `authenticated` | aplicada em 30/09/2026 |
 
 Duas ressalvas honestas sobre esse processo:
 
