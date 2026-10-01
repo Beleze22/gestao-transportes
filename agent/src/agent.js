@@ -481,6 +481,38 @@ async function rodarTurno(telefone, progresso) {
   return finalizarTurno(telefone, respostaFinal, progresso);
 }
 
+// [FIX #17] Dois blocos desta resposta são produzidos SÓ pelo código: a conferência
+// automática e o marcador de gravações. O modelo vê os dois no histórico — a conferência
+// porque ela vai na resposta ao usuário, e o marcador porque `finalizarTurno` grava
+// `texto + marcador` —, aprendeu o formato e passou a escrevê-los por conta própria. Em
+// 01/10/2026 (despesa #88) a resposta saiu com a conferência e o marcador DUPLICADOS, e a
+// cópia escrita pelo modelo inventava um campo que o código nem gera ("Obs: teste").
+//
+// A duplicação é o sintoma leve. O grave é o marcador: ele existe para o modelo ver, nas
+// conversas seguintes, que confirmação real tem gravação associada. Se o próprio modelo
+// pode escrevê-lo, um turno que não gravou nada passa a carregar prova falsa de gravação
+// para todos os turnos seguintes. O guard do FIX #8 não se abala — ele é determinístico e
+// olha se uma ferramenta de escrita rodou no turno —, mas a referência do histórico, sim.
+//
+// Daí a limpeza ser feita pelo código e não pedida no prompt: tudo a partir do cabeçalho
+// da conferência é cortado (o código anexa a dele logo depois) e qualquer marcador que
+// sobre é removido. Os padrões toleram paráfrase e negrito, que é como o modelo imita.
+const CABECALHO_CONFERENCIA = "📋 Conferência automática (gravado no banco):";
+const MARCADOR_PREFIXO = "[registro do sistema: gravações executadas neste turno →";
+const PADRAO_CONFERENCIA = /\n*📋\s*\*{0,2}\s*Confer[êe]ncia autom[áa]tica/i;
+const PADRAO_MARCADOR = /\[registro do sistema:[^\]]*\]/gi;
+
+// Se a resposta era só imitação e não sobra nada, isto entra no lugar: texto vazio é
+// recusado pelo Telegram com 400, e a resposta inteira se perderia por causa da limpeza.
+const TEXTO_SEM_CONTEUDO = "Pronto.";
+
+export function limparBlocosDeSistema(texto) {
+  if (!texto) return "";
+  const corte = texto.search(PADRAO_CONFERENCIA);
+  const semConferencia = corte === -1 ? texto : texto.slice(0, corte);
+  return semConferencia.replace(PADRAO_MARCADOR, "").trim();
+}
+
 // [FIX #12] Fecha o turno de forma uniforme nos três pontos de saída (fim normal,
 // limite de iterações e erro de escrita). Antes cada um montava a resposta por conta
 // própria e eles divergiram: o caminho de erro afirmava "nada foi registrado" e ainda
@@ -489,15 +521,19 @@ async function rodarTurno(telefone, progresso) {
 async function finalizarTurno(telefone, respostaFinal, progresso) {
   const { escritas, conferencias } = progresso;
 
+  // [FIX #17] O texto do modelo passa por uma limpeza antes de virar resposta — veja
+  // limparBlocosDeSistema.
+  const textoModelo = limparBlocosDeSistema(respostaFinal) || TEXTO_SEM_CONTEUDO;
+
   // [FIX #9] Conferência automática — sempre pelo código, nunca pelo texto do modelo.
   const texto = conferencias.length
-    ? `${respostaFinal}\n\n📋 Conferência automática (gravado no banco):\n${conferencias.join("\n\n")}`
-    : respostaFinal;
+    ? `${textoModelo}\n\n${CABECALHO_CONFERENCIA}\n${conferencias.join("\n\n")}`
+    : textoModelo;
 
   // O marcador vai só para o histórico (não para o usuário): nas próximas conversas
   // o modelo vê que confirmações reais têm gravações associadas.
   const marcador = escritas.length
-    ? `\n\n[registro do sistema: gravações executadas neste turno → ${escritas.join(", ")}]`
+    ? `\n\n${MARCADOR_PREFIXO} ${escritas.join(", ")}]`
     : "";
 
   await registrarMensagem(telefone, "assistant", texto + marcador);

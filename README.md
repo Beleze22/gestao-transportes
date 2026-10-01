@@ -68,7 +68,7 @@ cd agent
 npm install
 cp .env.example .env         # preencha com as credenciais reais
 npm start                    # ou npm run dev, com --watch
-npm test                     # 31 casos, sem dependência externa
+npm test                     # 42 casos, sem dependência externa
 ```
 
 O agente precisa da **chave secreta** do Supabase (`sb_secret_…`, antiga `service_role`), que
@@ -197,9 +197,13 @@ vive no cliente (`src/lib/viagem.js`, `src/lib/despesa.js`) e no agente
 cd agent && npm test
 ```
 
-31 casos cobrindo as correções do agente (FIX #11 a #15): turno que aborta sem deixar pedido
+42 casos cobrindo as correções do agente (FIX #11 a #17): turno que aborta sem deixar pedido
 órfão, aviso de erro que não mente sobre o que já foi gravado, conferência nome↔ID antes de
-gravar, e a regra de status da viagem. Usa o runner nativo do Node, sem dependência nova.
+gravar, a regra de status da viagem, o reenvio quando a conexão com o Telegram cai, e a
+limpeza dos blocos que só o código pode escrever. Usa o runner nativo do Node, sem dependência
+nova.
+
+Um dos casos espera o backoff de reenvio de verdade, então a suíte leva ~2s em vez de ~0,1s.
 
 **O app web não tem suíte.** A verificação é `npm run build`, `npx eslint src/` e teste manual.
 O lint acusa 4 erros pré-existentes, todos falsos positivos de configuração — veja `MELHORIAS.md`.
