@@ -2,6 +2,7 @@ import * as viagensService from "./services/viagens.js";
 import * as catalogo from "./services/catalogo.js";
 import { detectarConflitos } from "./services/conflicts.js";
 import { conferirReferencias, semCamposDeConferencia } from "./services/referencias.js";
+import { ehTravaDoBanco, TravaDoBancoError } from "./erros.js";
 
 const dataParam = { type: "string", description: "Data no formato YYYY-MM-DD" };
 
@@ -255,6 +256,18 @@ export async function executar(nome, input) {
     await conferirReferencias(input);
   }
 
+  try {
+    return await despachar(nome, input);
+  } catch (err) {
+    // [spec 02] Regra de negócio do banco (SQLSTATE TRV01) tem tratamento próprio: a
+    // mensagem já está escrita para o usuário, e o turno precisa terminar sem outra
+    // escrita. Convertida aqui, no ponto único, para valer igual no webhook e no /test.
+    if (ehTravaDoBanco(err)) throw new TravaDoBancoError(err.message);
+    throw err;
+  }
+}
+
+async function despachar(nome, input) {
   switch (nome) {
     case "listar_clientes":
       return catalogo.listarClientes();

@@ -82,6 +82,7 @@ Diretrizes:
 - CONFERÊNCIA OBRIGATÓRIA DE REFERÊNCIAS: sempre que enviar cliente_id, motorista_id, caminhao_id ou categoria a uma ferramenta de escrita, envie TAMBÉM o campo de nome correspondente (cliente_nome, motorista_nome, caminhao_placa, categoria_nome), copiado EXATAMENTE como veio da ferramenta de listagem. O sistema cruza o nome com o ID no banco e RECUSA a gravação se o ID apontar para outro registro — é essa conferência que impede lançar um frete no motorista errado. Enviar o ID sem o nome também é recusado.
 - Quando o usuário mencionar nomes (cliente, motorista, empresa, categoria), busque o ID correspondente nas listas (listar_clientes, listar_motoristas, etc) antes de criar/atualizar registros. Se não encontrar, pergunte se deve cadastrar um novo.
 - IMPORTANTE — categorias de despesa: o campo "categoria" de registrar_despesa exige o ID real cadastrado em categoriasdespesas — NUNCA chute ou invente esse ID (ex.: não assuma que "pedágio" é categoria 1). Antes de QUALQUER registrar_despesa, chame listar_categorias e procure uma categoria cujo nome corresponda ao que o usuário disse. Se não houver correspondência, pergunte ao usuário se deve cadastrar uma categoria nova (adicionar_categoria) com esse nome ou usar uma das existentes — só prossiga com registrar_despesa depois de ter um ID real confirmado.
+- VIAGEM JÁ FATURADA: uma viagem que está numa ordem de pagamento fechada ou recebida não aceita mudança de valor do frete, de empresa nem de cliente — o banco recusa e devolve uma mensagem explicando. Quando isso acontecer, repasse a mensagem ao usuário e PARE. Não tente outro caminho: não crie uma viagem nova com o valor corrigido, não cancele a viagem, não registre uma despesa compensando a diferença. Esse tipo de contorno duplica faturamento. A correção é feita pelo gestor na web, reabrindo a ordem.
 - "Possível frete" / dados incompletos → sempre use criar_viagem_rascunho, nunca recuse por falta de dados.
 - Despesas sem data → assuma a data de hoje (DATA ATUAL acima). Não pergunte a data — inclua-a no resumo de confirmação para que o usuário possa corrigir se necessário.
 - Mensagens de áudio chegam transcritas automaticamente e podem conter erros de transcrição (ex: "despreza" em vez de "despesa", "negro" em vez de "nego"). Interprete pelo contexto e normalize erros óbvios — em especial nomes de motoristas/clientes: se a palavra transcrita for parecida com um nome cadastrado, use o nome do cadastro. Mostre a versão normalizada no resumo de confirmação para o usuário validar.
@@ -138,6 +139,10 @@ function formatarResultadoFerramenta(resultado) {
 async function executarFerramentasSequencial(blocosFerramenta) {
   const resultados = [];
   const recuperaveis = new Set();
+  // [spec 02] Mensagens de trava do banco, por tool_use_id. O `resultados` só guarda
+  // texto formatado; o fechamento do turno precisa da mensagem crua para repassá-la ao
+  // usuário sem envelope nenhum.
+  const travas = new Map();
   for (const bloco of blocosFerramenta) {
     try {
       const resultado = await executar(bloco.name, bloco.input);
@@ -161,9 +166,10 @@ async function executarFerramentasSequencial(blocosFerramenta) {
       // a mensagem já lista as opções válidas, então o loop pode continuar e deixar
       // o modelo se corrigir sozinho em vez de abortar a conversa.
       if (err.recuperavel === true) recuperaveis.add(bloco.id);
+      if (err.mensagemParaUsuario === true) travas.set(bloco.id, err.message);
     }
   }
-  return { resultados, recuperaveis };
+  return { resultados, recuperaveis, travas };
 }
 
 function formatarDataBR(iso) {
@@ -393,7 +399,7 @@ async function rodarTurno(telefone, progresso) {
     ];
 
     // [FIX #1] Execução sequencial em vez de Promise.all.
-    const { resultados: resultadosFerramentas, recuperaveis } =
+    const { resultados: resultadosFerramentas, recuperaveis, travas } =
       await executarFerramentasSequencial(blocosFerramenta);
 
     // [FIX #8/#9] Marca o turno e monta a conferência só para blocos que realmente
@@ -437,15 +443,29 @@ async function rodarTurno(telefone, progresso) {
       console.error(
         `[agent] interrompendo loop: erro em ferramenta de escrita "${nomeBloco}"`,
       );
+
+      // [spec 02] Trava do banco (TRV01): a mensagem já foi escrita para o usuário e diz
+      // o que fazer. Vai inteira, sem envelope — "ocorreu um erro ao salvar" só esconderia
+      // a instrução. O turno termina aqui de propósito: o risco a evitar é o modelo
+      // contornar o bloqueio criando uma viagem nova com o valor corrigido.
+      const mensagemDaTrava = travas.get(erroEscrita.tool_use_id);
+
       // [FIX #12] Antes este texto dizia "Nada foi registrado" sempre — inclusive quando
       // escritas anteriores do mesmo turno já tinham ido para o banco. O usuário lia que
-      // nada foi salvo, repetia o pedido e duplicava o registro.
-      respostaFinal = escritasExecutadas.length
-        ? `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}) e o pedido não foi concluído. ` +
-          `ATENÇÃO: parte do que veio antes JÁ foi gravada — confira abaixo antes de repetir, ` +
-          `para não duplicar.`
-        : `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}). ` +
-          `Nada foi registrado. Por favor, tente novamente ou verifique com o suporte.`;
+      // nada foi salvo, repetia o pedido e duplicava o registro. Vale igual para a trava.
+      if (mensagemDaTrava) {
+        respostaFinal = escritasExecutadas.length
+          ? `${mensagemDaTrava}\n\nATENÇÃO: o que veio antes neste pedido JÁ foi gravado — ` +
+            `confira abaixo antes de repetir, para não duplicar.`
+          : mensagemDaTrava;
+      } else {
+        respostaFinal = escritasExecutadas.length
+          ? `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}) e o pedido não foi concluído. ` +
+            `ATENÇÃO: parte do que veio antes JÁ foi gravada — confira abaixo antes de repetir, ` +
+            `para não duplicar.`
+          : `Ocorreu um erro ao tentar salvar os dados (${nomeBloco}). ` +
+            `Nada foi registrado. Por favor, tente novamente ou verifique com o suporte.`;
+      }
       return finalizarTurno(telefone, respostaFinal, progresso);
     }
 
