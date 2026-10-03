@@ -55,6 +55,21 @@ function App({ onSair }) {
     adicionarMotorista,
     adicionarCaminhao,
     adicionarCategoria,
+    // Spec 02 — ordens de pagamento. Ficam aqui, no layout, pelo mesmo motivo dos demais
+    // dados: as telas financeiras não podem recarregar a cada navegação.
+    listaOrdens,
+    resumoOrdens,
+    inicioControle,
+    criarOrdemComViagens,
+    incluirViagensNaOrdem,
+    tirarViagemDaOrdem,
+    fecharOrdem,
+    receberOrdem,
+    reabrirOrdem,
+    desfazerRecebimento,
+    editarNota,
+    excluirOrdem,
+    quitarNoLegado,
   } = useTransporteData();
 
   const [modal, setModal] = useState(null);
@@ -305,6 +320,21 @@ function App({ onSair }) {
               onAdicionarMotorista: handleAdicionarMotorista,
               onAdicionarCaminhao: handleAdicionarCaminhao,
               onAdicionarCategoria: handleAdicionarCategoria,
+              // Spec 02. As ações devolvem o erro do banco cru (TRV01), e cada tela o
+              // mostra no toast — a mensagem já vem escrita para o usuário.
+              listaOrdens,
+              resumoOrdens,
+              inicioControle,
+              criarOrdemComViagens,
+              incluirViagensNaOrdem,
+              tirarViagemDaOrdem,
+              fecharOrdem,
+              receberOrdem,
+              reabrirOrdem,
+              desfazerRecebimento,
+              editarNota,
+              excluirOrdem,
+              quitarNoLegado,
             }}
           />
         </AreaConteudo>
@@ -333,6 +363,13 @@ function App({ onSair }) {
       <ModalEditarViagem
         key={edicaoKey}
         viagem={viagemEditando}
+        // A ordem da viagem, quando há uma: é ela que decide o que fica travado no
+        // formulário (spec 02).
+        ordem={
+          viagemEditando?.ordem_id
+            ? listaOrdens.find((o) => o.id === viagemEditando.ordem_id) ?? null
+            : null
+        }
         listaClientes={listaClientes}
         listaMotoristas={listaMotoristas}
         listaCaminhoes={listaCaminhoes}

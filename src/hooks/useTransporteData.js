@@ -43,6 +43,12 @@ export default function useTransporteData() {
   const [listaViagens, setListaViagens] = useState([]);
   const [listaDespesas, setListaDespesas] = useState([]);
   const [listaCategorias, setListaCategorias] = useState([]);
+  // Spec 02. As ordens entram na carga inicial, junto com o resto, e não ao abrir cada
+  // tela financeira: é o que mantém o critério 9 da spec 04 — trocar de tela não dispara
+  // consulta nova. Custa três requisições na abertura.
+  const [listaOrdens, setListaOrdens] = useState([]);
+  const [resumoOrdens, setResumoOrdens] = useState({});
+  const [inicioControle, setInicioControle] = useState(null);
 
   // `silencioso` evita o spinner de tela cheia do App.jsx. Sem ele, qualquer regravação
   // desmonta a árvore inteira: as Tabs são não-controladas e voltam para "Viagem", e os
@@ -50,13 +56,16 @@ export default function useTransporteData() {
   // mostrar o spinner.
   const buscarDados = async ({ silencioso = false } = {}) => {
     if (!silencioso) setLoading(true);
-    const [cli, mot, cam, cat, via, desp] = await Promise.all([
+    const [cli, mot, cam, cat, via, desp, ord, res, cfg] = await Promise.all([
       supabase.from("clientes").select("*"),
       supabase.from("motoristas").select("*"),
       supabase.from("caminhoes").select("*"),
       supabase.from("categoriasdespesas").select("*"),
       supabase.from("viagens").select(`*, clientes(nome), motoristas(nome), caminhoes(placa)`).order("data", { ascending: false }),
       supabase.from("despesas").select(`*, categoriasdespesas(categoria)`).order("data", { ascending: false }),
+      supabase.from("ordens_pagamento").select(`*, clientes(nome)`).order("id", { ascending: false }),
+      supabase.from("ordens_resumo").select("*"),
+      supabase.from("configuracao_financeira").select("inicio_controle").maybeSingle(),
     ]);
     if (cli.data) setListaClientes(cli.data);
     if (mot.data) setListaMotoristas(mot.data);
@@ -64,8 +73,26 @@ export default function useTransporteData() {
     if (cat.data) setListaCategorias(cat.data);
     if (via.data) setListaViagens(via.data);
     if (desp.data) setListaDespesas(desp.data);
+    if (ord.data) setListaOrdens(ord.data);
+    // Indexado por ordem_id: as telas pedem o resumo de uma ordem por vez, e uma busca
+    // linear por ordem numa lista que cresce sem teto não se justifica.
+    if (res.data) {
+      setResumoOrdens(Object.fromEntries(res.data.map((r) => [r.ordem_id, r])));
+    }
+    if (cfg.data) setInicioControle(cfg.data.inicio_controle);
     if (!silencioso) setLoading(false);
   };
+
+  // Toda ação de ordem termina recarregando: o total da ordem não é gravado (é a soma das
+  // viagens dela) e o banco grava sozinho fechada_em, reaberta_em e a limpeza do
+  // recebimento. Recalcular em memória seria manter uma segunda versão dessas regras.
+  const recarregar = () => buscarDados({ silencioso: true });
+
+  function exigirSucesso(error) {
+    // O erro de trava do banco (SQLSTATE TRV01) já vem com mensagem escrita para a tela.
+    // Repassada como está, é ela que o toast mostra.
+    if (error) throw new Error(error.message);
+  }
 
   // Substitui uma viagem na lista sem refazer a consulta — mantém o scroll da tabela,
   // os filtros e a aba atual.
@@ -214,6 +241,115 @@ export default function useTransporteData() {
     setListaDespesas((prev) => prev.filter((d) => d.id !== id));
   };
 
+  // --- Ordens de pagamento (spec 02) ---
+  //
+  // Nenhuma destas funções valida: quem recusa é o banco, pelas triggers da 005/006, e a
+  // mensagem dele vai direto para o toast. A tela só evita oferecer o que será recusado.
+
+  const moverViagensParaOrdem = async (ordemId, idsViagens) => {
+    const { error } = await supabase
+      .from("viagens")
+      .update({ ordem_id: ordemId })
+      .in("id", idsViagens);
+    exigirSucesso(error);
+  };
+
+  // Criar ordem e mover viagens são dois comandos, e o segundo pode ser recusado pela
+  // trava. Sem a limpeza abaixo, uma recusa deixaria uma ordem aberta e vazia no banco —
+  // aparecendo na lista de Ordens como se o gerente a tivesse criado de propósito.
+  const criarOrdemComViagens = async (clienteId, idsViagens) => {
+    const { data, error } = await supabase
+      .from("ordens_pagamento")
+      .insert([{ cliente_id: clienteId }])
+      .select()
+      .single();
+    exigirSucesso(error);
+
+    try {
+      await moverViagensParaOrdem(data.id, idsViagens);
+    } catch (err) {
+      // A ordem nasceu aberta, então o banco permite excluí-la. Se nem isso der certo,
+      // o erro original é o que importa para o usuário.
+      await supabase.from("ordens_pagamento").delete().eq("id", data.id);
+      throw err;
+    }
+    await recarregar();
+    return data;
+  };
+
+  const incluirViagensNaOrdem = async (ordemId, idsViagens) => {
+    await moverViagensParaOrdem(ordemId, idsViagens);
+    await recarregar();
+  };
+
+  const tirarViagemDaOrdem = async (viagemId) => {
+    const { error } = await supabase
+      .from("viagens")
+      .update({ ordem_id: null })
+      .eq("id", viagemId);
+    exigirSucesso(error);
+    await recarregar();
+  };
+
+  const alterarOrdem = async (ordemId, campos) => {
+    const { error } = await supabase
+      .from("ordens_pagamento")
+      .update(campos)
+      .eq("id", ordemId);
+    exigirSucesso(error);
+    await recarregar();
+  };
+
+  const fecharOrdem = (ordemId, dados) =>
+    alterarOrdem(ordemId, { ...dados, status: "fechada" });
+
+  const receberOrdem = (ordemId, { recebida_em, empresa_recebedora }) =>
+    alterarOrdem(ordemId, { status: "recebida", recebida_em, empresa_recebedora });
+
+  const reabrirOrdem = (ordemId, motivo) =>
+    alterarOrdem(ordemId, { status: "aberta", motivo_reabertura: motivo });
+
+  // Não manda recebida_em nem empresa_recebedora: a trigger limpa os dois. Mandar null
+  // daqui funcionaria igual, mas duplicaria a regra em dois lugares.
+  const desfazerRecebimento = (ordemId) => alterarOrdem(ordemId, { status: "fechada" });
+
+  const editarNota = (ordemId, { numero_nota, data_nota }) =>
+    alterarOrdem(ordemId, { numero_nota, data_nota });
+
+  const excluirOrdem = async (ordemId) => {
+    const { error } = await supabase.from("ordens_pagamento").delete().eq("id", ordemId);
+    exigirSucesso(error);
+    // As viagens voltam para "a faturar" pela cascata `on delete set null` da 005.
+    await recarregar();
+  };
+
+  // Quitação de legado: há no máximo uma por cliente, então ou se usa a que existe ou se
+  // cria. A corrida entre dois cliques é coberta pelo índice único do banco, que devolve
+  // TRV01 com a ordem existente na mensagem.
+  const quitarNoLegado = async (clienteId, idsViagens) => {
+    const existente = listaOrdens.find((o) => o.legado && o.cliente_id === clienteId);
+    if (existente) {
+      await moverViagensParaOrdem(existente.id, idsViagens);
+      await recarregar();
+      return existente;
+    }
+
+    const { data, error } = await supabase
+      .from("ordens_pagamento")
+      .insert([{ cliente_id: clienteId, legado: true, status: "recebida" }])
+      .select()
+      .single();
+    exigirSucesso(error);
+
+    // Ao contrário de criarOrdemComViagens, aqui não há limpeza se o movimento falhar: a
+    // quitação de legado NÃO pode ser excluída (nasce recebida, e o banco só exclui ordem
+    // aberta). Ela fica vazia e será reaproveitada na próxima quitação deste cliente, que
+    // é o que a mensagem da 006 orienta. O erro sobe sozinho para o toast.
+    await moverViagensParaOrdem(data.id, idsViagens);
+    await recarregar();
+    return data;
+  };
+
   return {
     loading,
     viagem, setViagem,
@@ -224,5 +360,10 @@ export default function useTransporteData() {
     handleAtualizarViagem, cancelarViagem, reativarViagem, excluirViagem,
     handleAtualizarDespesa, excluirDespesa,
     adicionarCliente, adicionarMotorista, adicionarCaminhao, adicionarCategoria,
+    // Spec 02
+    listaOrdens, resumoOrdens, inicioControle,
+    criarOrdemComViagens, incluirViagensNaOrdem, tirarViagemDaOrdem,
+    fecharOrdem, receberOrdem, reabrirOrdem, desfazerRecebimento,
+    editarNota, excluirOrdem, quitarNoLegado,
   };
 }

@@ -5,6 +5,10 @@ import App from "@/App";
 import NovaViagem from "@/paginas/NovaViagem";
 import NovaDespesa from "@/paginas/NovaDespesa";
 import Painel from "@/paginas/Painel";
+import AFaturar from "@/paginas/AFaturar";
+import Ordens from "@/paginas/Ordens";
+import Ordem from "@/paginas/Ordem";
+import Legado from "@/paginas/Legado";
 import { ROTA_INICIAL } from "@/lib/navegacao";
 
 // Manda para o login guardando de onde a pessoa veio, para voltar à tela certa depois de
@@ -56,6 +60,10 @@ export default function PortaoSessao() {
           <Route path="/viagens/nova" element={<NovaViagem />} />
           <Route path="/despesas/nova" element={<NovaDespesa />} />
           <Route path="/painel" element={<Painel />} />
+          <Route path="/financeiro/a-faturar" element={<AFaturar />} />
+          <Route path="/financeiro/ordens" element={<Ordens />} />
+          <Route path="/financeiro/ordens/:id" element={<Ordem />} />
+          <Route path="/financeiro/legado" element={<Legado />} />
           {/* A raiz e qualquer endereço desconhecido caem na tarefa mais comum do dia. */}
           <Route path="*" element={<Navigate to={ROTA_INICIAL} replace />} />
         </Route>

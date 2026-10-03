@@ -32,6 +32,11 @@ export default function ViagemForm({
   salvando = false,
   onCancelar,
   className,
+  // Spec 02: viagem em ordem fechada ou recebida. Valor do frete, empresa e cliente não
+  // podem mudar. A tela só ANTECIPA a regra — quem recusa é o banco, com TRV01, inclusive
+  // para o agente. Desabilitar aqui evita o toast de erro depois de digitar.
+  travado = false,
+  avisoDeTrava = null,
 }) {
   // Na edição, uma viagem que já tem dados de logística precisa abrir com a seção
   // expandida — senão o usuário não vê o que está gravado. Só roda na montagem, o
@@ -61,7 +66,13 @@ export default function ViagemForm({
       )}
       <CardContent className={titulo ? undefined : "pt-6"}>
         <form onSubmit={onSalvar} className="space-y-4">
-          <SeletorEmpresa valor={viagem.empresa} onChange={set("empresa")} />
+          {avisoDeTrava}
+
+          <SeletorEmpresa
+            valor={viagem.empresa}
+            onChange={set("empresa")}
+            desabilitado={travado}
+          />
 
           <div className="space-y-1.5">
             <Label>Data</Label>
@@ -88,6 +99,7 @@ export default function ViagemForm({
               <Select
                 value={viagem.cliente_id}
                 onValueChange={set("cliente_id")}
+                disabled={travado}
               >
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Selecione..." />
@@ -177,6 +189,7 @@ export default function ViagemForm({
                 placeholder="Frete"
                 value={viagem.valorFrete}
                 onChange={(e) => set("valorFrete")(e.target.value)}
+                disabled={travado}
               />
               <Input
                 type="number"

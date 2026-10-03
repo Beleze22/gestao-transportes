@@ -17,6 +17,7 @@ import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { situacaoFinanceira } from "@/lib/ordem";
 
 // ── CONSTANTS ──────────────────────────────────────────────
 
@@ -169,7 +170,18 @@ function rotaDaViagem(v) {
 export default function Dashboard({
   listaViagens, listaDespesas, listaClientes, listaMotoristas,
   onEditarViagem, onEditarDespesa,
+  // Spec 02: só para a coluna de situação financeira. Sem eles a coluna mostra "—", o que
+  // é o certo — não inventa situação com dado que não chegou.
+  listaOrdens = [], inicioControle = null,
 }) {
+  // Ordem por id, para a coluna de situação não varrer a lista a cada linha.
+  const ordensPorId = useMemo(
+    () => Object.fromEntries(listaOrdens.map((o) => [o.id, o])),
+    [listaOrdens],
+  );
+  const situacaoDaViagem = (v) =>
+    situacaoFinanceira(v, v.ordem_id ? ordensPorId[v.ordem_id] : null, inicioControle);
+
   const [periodo, setPeriodo]       = useState("mes_atual");
   const [empresa, setEmpresa]       = useState("todas");
   const [clienteId, setClienteId]   = useState("todos");
@@ -554,6 +566,10 @@ export default function Dashboard({
                 <TableHead className="hidden sm:table-cell">Motorista</TableHead>
                 <TableHead className="hidden md:table-cell">Empresa</TableHead>
                 <TableHead className="hidden md:table-cell">Rota</TableHead>
+                {/* Spec 02: onde a viagem está no ciclo do dinheiro. Some antes de lg
+                    porque não é o que se procura numa tabela de lançamento — quem quer
+                    cobrança vai para o Financeiro. */}
+                <TableHead className="hidden lg:table-cell">Situação</TableHead>
                 <TableHead className="text-right">Frete</TableHead>
                 <TableHead className="w-10 px-1">
                   <span className="sr-only">Ações</span>
@@ -599,6 +615,11 @@ export default function Dashboard({
                         </span>
                       ) : "—"}
                     </TableCell>
+                    <TableCell className="hidden lg:table-cell whitespace-nowrap text-xs">
+                      {situacaoDaViagem(v)?.rotulo ?? (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell
                       className={`text-right font-medium tabular-nums whitespace-nowrap ${
                         cancelada ? "line-through" : ""
@@ -637,6 +658,7 @@ export default function Dashboard({
                   <TableCell className="hidden sm:table-cell" />
                   <TableCell className="hidden md:table-cell" />
                   <TableCell className="hidden md:table-cell" />
+                  <TableCell className="hidden lg:table-cell" />
                   <TableCell className="text-right tabular-nums whitespace-nowrap">
                     {brl(totalDiario)}
                   </TableCell>

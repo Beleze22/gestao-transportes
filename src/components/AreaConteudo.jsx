@@ -2,7 +2,7 @@ import { useLocation } from "react-router";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import { tituloDaRota } from "@/lib/navegacao";
+import { temCabecalhoProprio, tituloDaRota } from "@/lib/navegacao";
 
 // A área de conteúdo ao lado do menu: a barra do celular (três listras + nome da tela), o
 // título da tela no computador, e as margens de docs/design.md — 32 px em cima e 40 px dos
@@ -33,8 +33,12 @@ export default function AreaConteudo({ children }) {
       </header>
 
       <div className="p-4 pb-24 md:px-10 md:py-8 md:pb-10">
-        {/* No celular o título já está na barra acima; repetir gastaria altura de tela. */}
-        <h1 className="mb-5 hidden text-2xl font-bold text-brand-green md:block">{titulo}</h1>
+        {/* No celular o título já está na barra acima; repetir gastaria altura de tela. E
+            nas telas do Financeiro ele vem do próprio cabeçalho delas, com subtítulo e
+            números ao lado. */}
+        {!temCabecalhoProprio(pathname) && (
+          <h1 className="mb-5 hidden text-2xl font-bold text-brand-green md:block">{titulo}</h1>
+        )}
         {children}
       </div>
     </>

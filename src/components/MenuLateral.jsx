@@ -6,13 +6,14 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ITENS_MENU } from "@/lib/navegacao";
+import { ITENS_FINANCEIRO, ITENS_LANCAMENTO } from "@/lib/navegacao";
 
 // Altura dos itens: 48 px no celular e 44 px no computador (docs/design.md). O
 // `group-data-[collapsible=icon]` existe porque o próprio shadcn força 32 px no modo
@@ -29,6 +30,30 @@ export default function MenuLateral({ onSair }) {
   const fecharNoCelular = () => {
     if (isMobile) setOpenMobile(false);
   };
+
+  // O item fica ativo também nas rotas abaixo dele: estando em /financeiro/ordens/12, é
+  // "Ordens" que precisa aparecer marcado no menu.
+  const estaAtivo = (rota) => pathname === rota || pathname.startsWith(`${rota}/`);
+
+  // O ícone é usado como `item.icone` e não desestruturado: o eslint deste projeto não
+  // conta uso em JSX, e um `const Icone = item.icone` viraria erro de variável não usada —
+  // o mesmo falso positivo que o Dashboard tem (veja MELHORIAS.md).
+  const desenharItem = (item) => (
+    <SidebarMenuItem key={item.rota}>
+      {/* `tooltip` só aparece no modo recolhido e fora do celular — é a dica com o nome do
+          item que o critério 6 da spec 04 pede. */}
+      <SidebarMenuButton
+        asChild
+        isActive={estaAtivo(item.rota)}
+        tooltip={item.rotulo}
+        className={ALTURA_ITEM}>
+        <NavLink to={item.rota} onClick={fecharNoCelular}>
+          <item.icone aria-hidden="true" />
+          <span>{item.rotulo}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -57,28 +82,17 @@ export default function MenuLateral({ onSair }) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {/* O ícone é usado como `item.icone` e não desestruturado: o eslint deste
-                  projeto não conta uso em JSX, e um `const Icone = item.icone` viraria
-                  erro de variável não usada — o mesmo falso positivo que o Dashboard tem
-                  (veja MELHORIAS.md). */}
-              {ITENS_MENU.map((item) => (
-                <SidebarMenuItem key={item.rota}>
-                  {/* `tooltip` só aparece no modo recolhido e fora do celular — é a dica
-                      com o nome do item que o critério 6 pede. */}
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.rota}
-                    tooltip={item.rotulo}
-                    className={ALTURA_ITEM}>
-                    <NavLink to={item.rota} onClick={fecharNoCelular}>
-                      <item.icone aria-hidden="true" />
-                      <span>{item.rotulo}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenu>{ITENS_LANCAMENTO.map(desenharItem)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* O grupo financeiro tem rótulo, os lançamentos não — é o que o protótipo do
+            celular mostra. No modo recolhido o shadcn esconde o rótulo sozinho, senão a
+            palavra "Financeiro" apareceria cortada numa coluna de 68 px. */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Financeiro</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>{ITENS_FINANCEIRO.map(desenharItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

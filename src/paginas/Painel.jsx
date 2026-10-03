@@ -14,6 +14,8 @@ export default function Painel() {
       listaMotoristas={ctx.listaMotoristas}
       onEditarViagem={ctx.abrirEdicaoViagem}
       onEditarDespesa={ctx.abrirEdicaoDespesa}
+      listaOrdens={ctx.listaOrdens}
+      inicioControle={ctx.inicioControle}
     />
   );
 }

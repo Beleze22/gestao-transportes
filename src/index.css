@@ -41,6 +41,19 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Etiquetas de empresa e de situação da ordem (spec 02). */
+  --color-empresa-rohan: var(--empresa-rohan);
+  --color-empresa-rohan-foreground: var(--empresa-rohan-foreground);
+  --color-empresa-tb: var(--empresa-tb);
+  --color-empresa-tb-foreground: var(--empresa-tb-foreground);
+  --color-status-aberta: var(--status-aberta);
+  --color-status-aberta-foreground: var(--status-aberta-foreground);
+  --color-status-fechada: var(--status-fechada);
+  --color-status-fechada-foreground: var(--status-fechada-foreground);
+  --color-status-recebida: var(--status-recebida);
+  --color-status-recebida-foreground: var(--status-recebida-foreground);
+  --color-status-vencida: var(--status-vencida);
+  --color-status-vencida-foreground: var(--status-vencida-foreground);
 }
 
 :root {
@@ -81,6 +94,25 @@
   --sidebar-accent-foreground: var(--brand-gold); /* #ce911b — ícone do item ativo */
   --sidebar-border: oklch(0.342 0.051 150); /* #24402a */
   --sidebar-ring: var(--brand-gold);
+
+  /* Etiquetas da spec 02, da tabela de docs/design.md, em oklch com o hex ao lado.
+     A situação da ordem reaproveita as cores das etiquetas de empresa de propósito —
+     está assim no guia: fechada usa o par da TransBeleze e recebida o par da Rohan. Por
+     isso são `var()` e não os valores repetidos: se o guia mudar a etiqueta, a situação
+     acompanha. */
+  --empresa-rohan: oklch(0.939 0.011 150); /* #e6ede7 */
+  --empresa-rohan-foreground: oklch(0.301 0.051 148); /* #1b351f */
+  --empresa-tb: oklch(0.955 0.035 85); /* #fbefd6 */
+  --empresa-tb-foreground: oklch(0.438 0.092 77); /* #6e4a00 */
+
+  --status-aberta: oklch(0.953 0.003 146); /* #eef0ee */
+  --status-aberta-foreground: oklch(0.373 0.011 145); /* #3d423d */
+  --status-fechada: var(--empresa-tb);
+  --status-fechada-foreground: var(--empresa-tb-foreground);
+  --status-recebida: var(--empresa-rohan);
+  --status-recebida-foreground: var(--empresa-rohan-foreground);
+  --status-vencida: oklch(0.916 0.031 28); /* #f7dcd8 */
+  --status-vencida-foreground: oklch(0.418 0.144 30); /* #8a1f15 */
 }
 
 @layer base {

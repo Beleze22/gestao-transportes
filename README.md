@@ -111,6 +111,8 @@ arquivo diz como aplicar.
 | `002_multiempresa_apelidos.sql` | `empresa` passa a aceitar nulo; cria `motoristas_apelidos` | aplicada |
 | `003_corrigir_status_legado.sql` | Corrige 3 datas com ano corrompido e recalcula o status de 376 viagens legadas | aplicada em 16/09/2026 |
 | `004_login_gerentes.sql` | Fecha as seis tabelas antigas para o papel `anon`: uma policy "gerentes autenticados" em cada, só para `authenticated` | aplicada em 30/09/2026 |
+| `005_ordens_pagamento.sql` | Cria `ordens_pagamento` e `configuracao_financeira`, a coluna `viagens.ordem_id`, a view `ordens_resumo` e as duas triggers de trava (erros com SQLSTATE `TRV01`) | aplicada em 03/10/2026 |
+| `006_mensagens_trava.sql` | Corrige o texto de três mensagens da 005 que mandavam o usuário fazer o que a própria trava proíbe, e dá `TRV01` à segunda quitação de legado. Só substitui as duas funções | aplicada em 03/10/2026 |
 
 Duas ressalvas honestas sobre esse processo:
 

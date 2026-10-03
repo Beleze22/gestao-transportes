@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router";
+import { Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,8 @@ export default function ModalEditarViagem({
   onAdicionarCliente,
   onAdicionarMotorista,
   onAdicionarCaminhao,
+  // Spec 02: a ordem desta viagem, quando há uma. Vem do App, que já tem a lista.
+  ordem = null,
 }) {
   const [form, setForm] = useState(() =>
     viagem ? linhaParaFormulario(viagem) : null,
@@ -33,6 +37,10 @@ export default function ModalEditarViagem({
   if (!viagem || !form) return null;
 
   const cancelada = viagem.status === "cancelada";
+  // Em ordem aberta tudo pode ser editado, menos cancelar. Em ordem fechada, recebida ou
+  // quitação de legado, o que foi cobrado do cliente está travado.
+  const travado = Boolean(ordem) && ordem.status !== "aberta";
+  const emOrdemAberta = Boolean(ordem) && ordem.status === "aberta";
 
   const submeter = async (e) => {
     e.preventDefault();
@@ -72,6 +80,25 @@ export default function ModalEditarViagem({
           textoBotao="Salvar alterações"
           salvando={salvando}
           onCancelar={onFechar}
+          travado={travado}
+          avisoDeTrava={
+            travado ? (
+              <div className="flex gap-2.5 rounded-lg border bg-secondary px-3 py-2.5 text-sm">
+                <Lock aria-hidden="true" className="mt-0.5 size-4 flex-none text-muted-foreground" />
+                <p>
+                  {ordem.legado
+                    ? "Esta viagem está quitada no legado, então valor, empresa e cliente estão travados. Para alterá-los, tire a viagem da quitação."
+                    : "Esta viagem já foi cobrada do cliente, então valor, empresa e cliente estão travados. Para alterá-los, reabra a ordem."}{" "}
+                  <Link
+                    to={`/financeiro/ordens/${ordem.id}`}
+                    onClick={onFechar}
+                    className="font-semibold underline underline-offset-4">
+                    Ver ordem #{ordem.id}
+                  </Link>
+                </p>
+              </div>
+            ) : null
+          }
           // pr-10 abre espaço para o X que o DialogContent posiciona sozinho.
           className="border-0 shadow-none [&>*:first-child]:pr-10"
         />
@@ -92,14 +119,21 @@ export default function ModalEditarViagem({
               variant="destructive"
               className="w-full"
               onClick={() => onCancelarViagem(viagem)}
-              disabled={salvando}>
+              // Viagem em ordem não é cancelada: em ordem aberta, ela sai da ordem antes;
+              // em ordem fechada, a ordem é reaberta antes. O banco recusa as duas, e
+              // desabilitar aqui evita o toast de erro depois do clique.
+              disabled={salvando || travado || emOrdemAberta}>
               Cancelar viagem
             </Button>
           )}
           <p className="text-xs text-muted-foreground text-center">
             {cancelada
               ? "Viagem cancelada — está fora de todos os cálculos."
-              : "Cancelar mantém o registro no histórico e fora dos cálculos."}
+              : travado
+                ? `Para cancelar, ${ordem.legado ? "tire a viagem da quitação de legado" : `reabra a ordem #${ordem.id} e tire a viagem dela`}.`
+                : emOrdemAberta
+                  ? `Para cancelar, tire a viagem da ordem #${ordem.id} primeiro.`
+                  : "Cancelar mantém o registro no histórico e fora dos cálculos."}
           </p>
         </div>
       </DialogContent>

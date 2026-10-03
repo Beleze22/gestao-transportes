@@ -10,7 +10,12 @@ const EMPRESAS = ["Rohan", "TransBeleze"];
 // verde com texto branco. Por trás é um grupo de rádios de verdade — é o que dá navegação
 // por seta, leitura correta em leitor de tela e o `required` do formulário. Um par de
 // <button> estilizados não daria nenhuma das três coisas.
-export default function SeletorEmpresa({ valor, onChange, rotulo = "Empresa" }) {
+export default function SeletorEmpresa({
+  valor,
+  onChange,
+  rotulo = "Empresa",
+  desabilitado = false,
+}) {
   // O mesmo formulário é montado duas vezes ao mesmo tempo quando o modal de edição abre
   // sobre a tela de lançamento. O useId dá um `name` próprio a cada instância, para um
   // grupo de rádios não mexer no outro.
@@ -27,11 +32,12 @@ export default function SeletorEmpresa({ valor, onChange, rotulo = "Empresa" }) 
               key={empresa}
               htmlFor={`${id}-${empresa}`}
               className={[
-                "flex h-11 cursor-pointer items-center justify-center gap-2 text-sm",
+                "flex h-11 items-center justify-center gap-2 text-sm",
+                desabilitado ? "cursor-not-allowed opacity-60" : "cursor-pointer",
                 i > 0 && "border-l border-input",
                 escolhida
                   ? "bg-brand-green font-semibold text-white"
-                  : "bg-card text-foreground hover:bg-secondary",
+                  : `bg-card text-foreground ${desabilitado ? "" : "hover:bg-secondary"}`,
               ]
                 .filter(Boolean)
                 .join(" ")}>
@@ -41,6 +47,7 @@ export default function SeletorEmpresa({ valor, onChange, rotulo = "Empresa" }) 
                 name={id}
                 value={empresa}
                 checked={escolhida}
+                disabled={desabilitado}
                 onChange={() => onChange(empresa)}
                 className="accent-brand-gold"
               />
