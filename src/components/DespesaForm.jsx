@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import SeletorEmpresa from "@/components/SeletorEmpresa";
 
 export default function DespesaForm({
   despesa, setDespesa, listaCategorias, onSalvar, onAdicionarCategoria,
@@ -20,21 +21,19 @@ export default function DespesaForm({
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle>{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent>
+      {/* Ver ViagemForm: sem título quando a página já tem o <h1> da tela. */}
+      {titulo && (
+        <CardHeader>
+          <CardTitle>{titulo}</CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={titulo ? undefined : "pt-6"}>
         <form onSubmit={onSalvar} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Empresa Pagadora</Label>
-            <Select value={despesa.empresa} onValueChange={set("empresa")}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Rohan">Rohan</SelectItem>
-                <SelectItem value="TransBeleze">TransBeleze</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <SeletorEmpresa
+            valor={despesa.empresa}
+            onChange={set("empresa")}
+            rotulo="Empresa pagadora"
+          />
 
           <div className="space-y-1.5">
             <Label>Data</Label>

@@ -84,11 +84,15 @@ Push na branch `stable` dispara os dois deploys:
   `transporte-agent / production`.
 - **Netlify** roda o build do Vite e publica `dist/`.
 
-**Nenhuma configuração de infraestrutura está neste repositório.** Não existe `netlify.toml`,
-`railway.json`, `Procfile` nem workflow do GitHub Actions. Comando de build, variáveis de
-ambiente, domínio e política de restart vivem apenas nos painéis do Railway e do Netlify. O
-registro do webhook no Telegram (URL e `secret_token`) também é feito fora daqui, direto na
-API do Telegram.
+**Quase nenhuma configuração de infraestrutura está neste repositório.** Não existe
+`netlify.toml`, `railway.json`, `Procfile` nem workflow do GitHub Actions. Comando de build,
+variáveis de ambiente, domínio e política de restart vivem apenas nos painéis do Railway e do
+Netlify. O registro do webhook no Telegram (URL e `secret_token`) também é feito fora daqui,
+direto na API do Telegram.
+
+A única exceção é **`public/_redirects`**, que o Vite copia para o `dist/`: ele manda o Netlify
+servir o `index.html` em qualquer caminho. Sem esse arquivo, abrir `/painel` direto ou recarregar
+fora da raiz dá 404 — o roteamento é todo no navegador, e o `dist/` não tem pasta `/painel`.
 
 Consequência prática: **mudar variável de ambiente exige redeploy no Netlify** (elas entram no
 bundle durante o build) e reinício no Railway.
@@ -217,7 +221,13 @@ O lint acusa 4 erros pré-existentes, todos falsos positivos de configuração �
 - **`src/components/` tem componentes órfãos** desde a migração para Tailwind/shadcn:
   `DiarioViagens`, `FiltrosRelatorio`, `ResumoFinanceiro`, `TabelasRelatorio`, `TabNav`,
   `Toast`. Vários contêm versões antigas das mesmas tabelas — quem procurar por um texto da
-  interface pode cair no arquivo errado.
+  interface pode cair no arquivo errado. `ui/tabs.jsx` entrou nessa lista quando as três abas
+  do topo viraram menu lateral.
+- **`src/components/ui/sidebar.jsx` tem correções feitas à mão**, descritas no cabeçalho do
+  arquivo. A CLI do shadcn entrega a geração Tailwind 3, que escreve largura como
+  `w-[--sidebar-width]` — forma que o Tailwind 4 traduz para `width:--sidebar-width`, uma
+  declaração inválida que o navegador joga fora. O sintoma é o menu aparecer **sem largura
+  nenhuma**. Regerar o arquivo pela CLI traz o problema de volta.
 - **A URL pública do serviço no Railway não está registrada em lugar nenhum.** Ela aparece na
   resposta do `getWebhookInfo` do Telegram e no painel. Sem ela não dá para bater no `/health`
   nem nos endpoints `/test`.

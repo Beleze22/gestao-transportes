@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import SeletorEmpresa from "@/components/SeletorEmpresa";
 import { hojeISO } from "@/lib/campos";
 
 export default function ViagemForm({
@@ -50,23 +51,17 @@ export default function ViagemForm({
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle>{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent>
+      {/* Sem título quando quem chama já pôs um: na tela de lançamento o nome da tela é o
+          <h1> da página, e repeti-lo no cartão daria "Nova viagem" duas vezes. O modal de
+          edição continua passando o seu. */}
+      {titulo && (
+        <CardHeader>
+          <CardTitle>{titulo}</CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={titulo ? undefined : "pt-6"}>
         <form onSubmit={onSalvar} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Empresa</Label>
-            <Select value={viagem.empresa} onValueChange={set("empresa")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Rohan">Rohan</SelectItem>
-                <SelectItem value="TransBeleze">TransBeleze</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <SeletorEmpresa valor={viagem.empresa} onChange={set("empresa")} />
 
           <div className="space-y-1.5">
             <Label>Data</Label>

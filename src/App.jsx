@@ -1,19 +1,36 @@
 import { useState } from "react";
+import { Link, Outlet, useLocation } from "react-router";
 import { Toaster, toast } from "sonner";
-import { LogOut } from "lucide-react";
+import { Plus } from "lucide-react";
 import useTransporteData from "@/hooks/useTransporteData";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ViagemForm from "@/components/ViagemForm";
-import DespesaForm from "@/components/DespesaForm";
-import Dashboard from "@/components/Dashboard";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import MenuLateral from "@/components/MenuLateral";
+import AreaConteudo from "@/components/AreaConteudo";
+import { ROTA_INICIAL } from "@/lib/navegacao";
 import ModalQuickAdd from "@/components/ModalQuickAdd";
 import ModalEditarViagem from "@/components/ModalEditarViagem";
 import ModalEditarDespesa from "@/components/ModalEditarDespesa";
 import ModalConfirmacao from "@/components/ModalConfirmacao";
 
-// `sessao` e `onSair` vêm do PortaoSessao — este componente só é montado com sessão ativa.
-function App({ sessao, onSair }) {
+// O SidebarProvider do shadcn GRAVA o estado do menu no cookie `sidebar_state`, mas não o
+// lê: no Next.js, de onde o componente vem, quem lê é o servidor e passa em `defaultOpen`.
+// Aqui não há servidor, então sem esta função o menu voltaria aberto a cada recarga —
+// exatamente o que o critério 6 da spec 04 proíbe.
+function menuAbertoPorPadrao() {
+  const achado = document.cookie.match(/(?:^|;\s*)sidebar_state=(true|false)/);
+  return achado ? achado[1] === "true" : true;
+}
+
+// Layout de todas as telas com sessão: menu lateral, área de conteúdo e os modais. Só é
+// montado com sessão ativa — quem garante isso é o PortaoSessao, que também passa o
+// `onSair`. As telas em si vivem em src/paginas/ e entram pelo <Outlet>.
+//
+// Os dados e os rascunhos de formulário ficam AQUI, acima das rotas, de propósito: o
+// useTransporteData dispara buscarDados() na montagem, então descer esse estado para as
+// telas faria cada troca de aba recarregar o Supabase e apagar formulário pela metade.
+function App({ onSair }) {
+  const { pathname } = useLocation();
   const {
     loading,
     viagem,
@@ -258,94 +275,54 @@ function App({ sessao, onSair }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* A largura deixa de ser teto global e vira escolha de cada aba: o Dashboard
-          aproveita a tela do notebook, e os formulários continuam estreitos logo abaixo
-          (um formulário de uma coluna esticado em 1024px fica ruim de usar). */}
-      <div className="mx-auto max-w-2xl lg:max-w-5xl px-4 py-6 pb-20">
-        {/* O Sair fica aqui, acima das Tabs, para estar visível nas três. No computador
-            ele é fixado à direita e a marca continua centralizada; no celular vira uma
-            segunda linha, porque lado a lado a marca quebraria em três linhas. A spec 04
-            move esta ação para o rodapé do menu lateral. */}
-        <header className="mb-6 rounded-xl bg-brand-green px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:relative items-center justify-center gap-3 sm:gap-4">
-          <div className="flex items-center justify-center gap-4">
-            <img
-              src="/rohan-brasao-transparente.png"
-              alt="Rohan Transportes"
-              className="h-14 w-14 object-contain flex-none"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-            <div>
-              <p className="text-brand-gold font-bold text-xl tracking-widest uppercase leading-tight">
-                Rohan Transportes
-              </p>
-              <p className="text-brand-gold/60 text-xs tracking-[0.3em] uppercase mt-0.5">
-                Sistema de Gestão
-              </p>
-            </div>
-          </div>
+    // `defaultOpen` só é lido na montagem; daí em diante o componente cuida do estado e
+    // regrava o cookie a cada vez que o menu recolhe ou expande.
+    <SidebarProvider defaultOpen={menuAbertoPorPadrao()}>
+      <MenuLateral onSair={onSair} />
 
-          <div className="flex items-center gap-3 sm:absolute sm:right-4 sm:top-1/2 sm:-translate-y-1/2">
-            <span className="hidden md:block max-w-40 truncate text-xs text-brand-gold/60">
-              {sessao?.user?.email}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onSair}
-              aria-label="Sair do sistema"
-              className="h-11 px-3 border-brand-gold/40 bg-transparent text-brand-gold hover:bg-brand-gold/10 hover:text-brand-gold">
-              <LogOut aria-hidden="true" />
-              Sair
-            </Button>
-          </div>
-        </header>
+      <SidebarInset>
+        <AreaConteudo>
+          {/* Cada tela recebe daqui o que precisa. Os dados e os rascunhos ficam neste
+              componente, acima das rotas: trocar de tela não remonta o useTransporteData,
+              então não há nova carga do Supabase nem formulário apagado pela metade. */}
+          <Outlet
+            context={{
+              viagem,
+              setViagem,
+              despesa,
+              setDespesa,
+              listaClientes,
+              listaMotoristas,
+              listaCaminhoes,
+              listaViagens,
+              listaDespesas,
+              listaCategorias,
+              onSalvarViagem,
+              onSalvarDespesa,
+              abrirEdicaoViagem,
+              abrirEdicaoDespesa,
+              onAdicionarCliente: handleAdicionarCliente,
+              onAdicionarMotorista: handleAdicionarMotorista,
+              onAdicionarCaminhao: handleAdicionarCaminhao,
+              onAdicionarCategoria: handleAdicionarCategoria,
+            }}
+          />
+        </AreaConteudo>
 
-        <Tabs defaultValue="viagem">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="viagem">Viagem</TabsTrigger>
-            <TabsTrigger value="despesa">Despesa</TabsTrigger>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="viagem" className="mx-auto max-w-2xl">
-            <ViagemForm
-              viagem={viagem}
-              setViagem={setViagem}
-              listaClientes={listaClientes}
-              listaMotoristas={listaMotoristas}
-              listaCaminhoes={listaCaminhoes}
-              onSalvar={onSalvarViagem}
-              onAdicionarCliente={handleAdicionarCliente}
-              onAdicionarMotorista={handleAdicionarMotorista}
-              onAdicionarCaminhao={handleAdicionarCaminhao}
-            />
-          </TabsContent>
-
-          <TabsContent value="despesa" className="mx-auto max-w-2xl">
-            <DespesaForm
-              despesa={despesa}
-              setDespesa={setDespesa}
-              listaCategorias={listaCategorias}
-              onSalvar={onSalvarDespesa}
-              onAdicionarCategoria={handleAdicionarCategoria}
-            />
-          </TabsContent>
-
-          <TabsContent value="dashboard">
-            <Dashboard
-              listaViagens={listaViagens}
-              listaDespesas={listaDespesas}
-              listaClientes={listaClientes}
-              listaMotoristas={listaMotoristas}
-              onEditarViagem={abrirEdicaoViagem}
-              onEditarDespesa={abrirEdicaoDespesa}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
+        {/* Atalho para a tarefa mais comum do dia, só no celular e fora da própria tela de
+            Nova viagem. No computador o menu já deixa o item a um clique. */}
+        {pathname !== ROTA_INICIAL && (
+          <Button
+            asChild
+            size="lg"
+            className="fixed bottom-5 right-5 z-20 h-14 rounded-full shadow-lg md:hidden">
+            <Link to={ROTA_INICIAL}>
+              <Plus aria-hidden="true" />
+              Nova viagem
+            </Link>
+          </Button>
+        )}
+      </SidebarInset>
 
       <Toaster richColors position="bottom-center" />
       <ModalQuickAdd
@@ -386,7 +363,7 @@ function App({ sessao, onSair }) {
         onExcluir={confirmacao?.rotulo === "despesa" ? onExcluirDespesa : onExcluirViagem}
         onFechar={() => setConfirmacao(null)}
       />
-    </div>
+    </SidebarProvider>
   );
 }
 

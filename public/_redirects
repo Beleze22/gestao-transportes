@@ -1,0 +1,7 @@
+# O roteamento é todo no navegador (react-router). Sem esta regra, abrir
+# https://<site>/painel direto, ou recarregar fora da raiz, pede ao Netlify um arquivo
+# /painel que não existe no dist/ — e ele devolve 404. Aqui ele serve o index.html e deixa
+# o react-router resolver o caminho.
+#
+# O status 200 (e não 301) é o que mantém a URL que a pessoa digitou.
+/*  /index.html  200

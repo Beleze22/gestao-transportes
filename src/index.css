@@ -33,6 +33,14 @@
   --color-chart-5: var(--chart-5);
   --color-brand-green: var(--brand-green);
   --color-brand-gold: var(--brand-gold);
+  /* O componente Sidebar do shadcn lê estas seis. As --sidebar-primary* que a CLI
+     também escreve ficaram de fora: nenhuma linha de sidebar.jsx as usa. */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 :root {
@@ -64,6 +72,15 @@
   --chart-3: oklch(0.40 0.060 148);
   --chart-4: oklch(0.82 0.120 84);
   --chart-5: oklch(0.646 0.222 41.116);
+  /* Menu lateral. A CLI do shadcn escreve aqui o tema neutro dela, em hsl — estes
+     valores vêm da tabela de docs/design.md, convertidos para oklch, para o menu não
+     herdar cinza no lugar do verde da marca. O hex de origem fica ao lado. */
+  --sidebar: var(--brand-green); /* #0b200f */
+  --sidebar-foreground: oklch(0.873 0.015 149); /* #cfd8d0 */
+  --sidebar-accent: oklch(0.301 0.051 148); /* #1b351f — fundo do item ativo */
+  --sidebar-accent-foreground: var(--brand-gold); /* #ce911b — ícone do item ativo */
+  --sidebar-border: oklch(0.342 0.051 150); /* #24402a */
+  --sidebar-ring: var(--brand-gold);
 }
 
 @layer base {
