@@ -39,6 +39,13 @@ ou nas regras de viagem.
   `agent/src/services/viagens.js`. Mudou uma, mude a outra e o teste
   `agent/test/status-viagem.test.mjs`. A validação de cadastro existe em `src/lib/viagem.js`,
   `src/lib/despesa.js` e `agent/src/services/referencias.js`.
+- O cálculo do repasse entre as empresas está na view `devidos_entre_empresas` (migration
+  007) e espelhado em `src/lib/repasse.js`. A view é a fonte de verdade; o espelho existe
+  porque a prévia precisa do valor antes de a ordem ser recebida, quando não há linha para a
+  view calcular. Mudou a regra, mude os dois e rode os **dois** verificadores, que usam os
+  mesmos seis casos: `docs/specs/03-repasses-testes.sql` (critério 1, lado do banco) e
+  `docs/specs/03-repasses-verifica-formula.mjs` (lado do JavaScript — a receita de como
+  rodar está no cabeçalho do arquivo).
 - `viagens.status` descreve só o ciclo operacional da viagem. Estado financeiro (faturada,
   recebida) nunca vai nesse campo.
 - A coluna `empresa` é texto com os valores exatos `Rohan` e `TransBeleze`.

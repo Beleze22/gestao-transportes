@@ -14,6 +14,7 @@ import EtiquetaSituacao from "@/components/EtiquetaSituacao";
 import ModalFecharOrdem from "@/components/ModalFecharOrdem";
 import ModalReceberOrdem from "@/components/ModalReceberOrdem";
 import ModalReabrirOrdem from "@/components/ModalReabrirOrdem";
+import PreviaRepasse from "@/components/PreviaRepasse";
 import { elegivelParaOrdem, linhaDoTempo, rotuloNota, totaisPorEmpresa } from "@/lib/ordem";
 import { brl, dataCurta, rota } from "@/lib/formato";
 
@@ -277,6 +278,24 @@ export default function Ordem() {
         </Card>
       )}
 
+      {/* Repasse que esta ordem gerou. Só na recebida e fora do legado: é o recebimento que
+          cria o devido. A alíquota vem da própria ordem, congelada no recebimento — não da
+          tabela de alíquotas, que pode ter mudado desde então. */}
+      {ordem.status === "recebida" && !ordem.legado && (
+        <div className="mb-4">
+          <PreviaRepasse
+            totais={totais}
+            comNota={ordem.com_nota}
+            empresaNota={ordem.empresa_nota}
+            empresaRecebedora={ordem.empresa_recebedora}
+            aliquotaDaEmissora={Number(ordem.aliquota_repasse ?? 0)}
+            // Sem aviso de vencida aqui: a alíquota desta ordem está congelada, e cobrar
+            // atualização de um número que não muda mais só geraria ruído.
+            atualizadaEm={new Date().toISOString()}
+          />
+        </div>
+      )}
+
       <FormularioNota ordem={ordem} salvando={salvando} onSalvar={(dados) =>
         executar(async () => {
           await ctx.editarNota(ordem.id, dados);
@@ -352,6 +371,8 @@ export default function Ordem() {
         <ModalReceberOrdem
           ordem={ordem}
           total={totais.total}
+          totais={totais}
+          aliquotas={ctx.aliquotas}
           onFechar={() => setModal(null)}
           onConfirmar={(dados) =>
             executar(async () => {

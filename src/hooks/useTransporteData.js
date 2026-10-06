@@ -49,6 +49,12 @@ export default function useTransporteData() {
   const [listaOrdens, setListaOrdens] = useState([]);
   const [resumoOrdens, setResumoOrdens] = useState({});
   const [inicioControle, setInicioControle] = useState(null);
+  // Spec 03. `saldoEntreEmpresas` é sempre no sentido TransBeleze -> Rohan: positivo, a
+  // TransBeleze deve; negativo, o contrário. O sentido fixo vem da view.
+  const [aliquotas, setAliquotas] = useState([]);
+  const [movimentos, setMovimentos] = useState([]);
+  const [devidos, setDevidos] = useState([]);
+  const [saldoEntreEmpresas, setSaldoEntreEmpresas] = useState(0);
 
   // `silencioso` evita o spinner de tela cheia do App.jsx. Sem ele, qualquer regravação
   // desmonta a árvore inteira: as Tabs são não-controladas e voltam para "Viagem", e os
@@ -56,7 +62,7 @@ export default function useTransporteData() {
   // mostrar o spinner.
   const buscarDados = async ({ silencioso = false } = {}) => {
     if (!silencioso) setLoading(true);
-    const [cli, mot, cam, cat, via, desp, ord, res, cfg] = await Promise.all([
+    const [cli, mot, cam, cat, via, desp, ord, res, cfg, aliq, mov, dev, sal] = await Promise.all([
       supabase.from("clientes").select("*"),
       supabase.from("motoristas").select("*"),
       supabase.from("caminhoes").select("*"),
@@ -66,6 +72,10 @@ export default function useTransporteData() {
       supabase.from("ordens_pagamento").select(`*, clientes(nome)`).order("id", { ascending: false }),
       supabase.from("ordens_resumo").select("*"),
       supabase.from("configuracao_financeira").select("inicio_controle").maybeSingle(),
+      supabase.from("aliquotas_repasse").select("*").order("empresa"),
+      supabase.from("movimentos_entre_empresas").select("*").order("data", { ascending: false }),
+      supabase.from("devidos_entre_empresas").select("*"),
+      supabase.from("saldo_entre_empresas").select("saldo_tb_para_rohan").maybeSingle(),
     ]);
     if (cli.data) setListaClientes(cli.data);
     if (mot.data) setListaMotoristas(mot.data);
@@ -80,6 +90,12 @@ export default function useTransporteData() {
       setResumoOrdens(Object.fromEntries(res.data.map((r) => [r.ordem_id, r])));
     }
     if (cfg.data) setInicioControle(cfg.data.inicio_controle);
+    if (aliq.data) setAliquotas(aliq.data);
+    if (mov.data) setMovimentos(mov.data);
+    if (dev.data) setDevidos(dev.data);
+    // `numeric` do Postgres pode chegar como string no JSON — e um saldo em string
+    // compararia errado no `> 0` que decide quem deve a quem.
+    if (sal.data) setSaldoEntreEmpresas(Number(sal.data.saldo_tb_para_rohan ?? 0));
     if (!silencioso) setLoading(false);
   };
 
@@ -350,6 +366,43 @@ export default function useTransporteData() {
     return data;
   };
 
+  // --- Repasses entre empresas (spec 03) ---
+
+  const salvarMovimento = async (campos) => {
+    const { error } = await supabase.from("movimentos_entre_empresas").insert([campos]);
+    exigirSucesso(error);
+    await recarregar();
+  };
+
+  const editarMovimento = async (movimentoId, campos) => {
+    const { error } = await supabase
+      .from("movimentos_entre_empresas")
+      .update(campos)
+      .eq("id", movimentoId);
+    exigirSucesso(error);
+    await recarregar();
+  };
+
+  const excluirMovimento = async (movimentoId) => {
+    const { error } = await supabase
+      .from("movimentos_entre_empresas")
+      .delete()
+      .eq("id", movimentoId);
+    exigirSucesso(error);
+    await recarregar();
+  };
+
+  // `atualizada_em` vai junto, sempre: é essa data que o aviso de alíquota vencida usa, e
+  // deixá-la para um default do banco faria uma correção de digitação parecer atualização.
+  const salvarAliquota = async (empresa, aliquota) => {
+    const { error } = await supabase
+      .from("aliquotas_repasse")
+      .update({ aliquota, atualizada_em: new Date().toISOString() })
+      .eq("empresa", empresa);
+    exigirSucesso(error);
+    await recarregar();
+  };
+
   return {
     loading,
     viagem, setViagem,
@@ -365,5 +418,8 @@ export default function useTransporteData() {
     criarOrdemComViagens, incluirViagensNaOrdem, tirarViagemDaOrdem,
     fecharOrdem, receberOrdem, reabrirOrdem, desfazerRecebimento,
     editarNota, excluirOrdem, quitarNoLegado,
+    // Spec 03
+    aliquotas, movimentos, devidos, saldoEntreEmpresas,
+    salvarMovimento, editarMovimento, excluirMovimento, salvarAliquota,
   };
 }

@@ -70,6 +70,15 @@ function App({ onSair }) {
     editarNota,
     excluirOrdem,
     quitarNoLegado,
+    // Spec 03 — repasses entre as empresas.
+    aliquotas,
+    movimentos,
+    devidos,
+    saldoEntreEmpresas,
+    salvarMovimento,
+    editarMovimento,
+    excluirMovimento,
+    salvarAliquota,
   } = useTransporteData();
 
   const [modal, setModal] = useState(null);
@@ -335,6 +344,15 @@ function App({ onSair }) {
               editarNota,
               excluirOrdem,
               quitarNoLegado,
+              // Spec 03
+              aliquotas,
+              movimentos,
+              devidos,
+              saldoEntreEmpresas,
+              salvarMovimento,
+              editarMovimento,
+              excluirMovimento,
+              salvarAliquota,
             }}
           />
         </AreaConteudo>

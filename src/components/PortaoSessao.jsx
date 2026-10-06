@@ -9,6 +9,8 @@ import AFaturar from "@/paginas/AFaturar";
 import Ordens from "@/paginas/Ordens";
 import Ordem from "@/paginas/Ordem";
 import Legado from "@/paginas/Legado";
+import EntreEmpresas from "@/paginas/EntreEmpresas";
+import Aliquotas from "@/paginas/Aliquotas";
 import { ROTA_INICIAL } from "@/lib/navegacao";
 
 // Manda para o login guardando de onde a pessoa veio, para voltar à tela certa depois de
@@ -64,6 +66,8 @@ export default function PortaoSessao() {
           <Route path="/financeiro/ordens" element={<Ordens />} />
           <Route path="/financeiro/ordens/:id" element={<Ordem />} />
           <Route path="/financeiro/legado" element={<Legado />} />
+          <Route path="/financeiro/entre-empresas" element={<EntreEmpresas />} />
+          <Route path="/configuracoes/aliquotas" element={<Aliquotas />} />
           {/* A raiz e qualquer endereço desconhecido caem na tarefa mais comum do dia. */}
           <Route path="*" element={<Navigate to={ROTA_INICIAL} replace />} />
         </Route>

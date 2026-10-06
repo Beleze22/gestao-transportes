@@ -113,6 +113,7 @@ arquivo diz como aplicar.
 | `004_login_gerentes.sql` | Fecha as seis tabelas antigas para o papel `anon`: uma policy "gerentes autenticados" em cada, só para `authenticated` | aplicada em 30/09/2026 |
 | `005_ordens_pagamento.sql` | Cria `ordens_pagamento` e `configuracao_financeira`, a coluna `viagens.ordem_id`, a view `ordens_resumo` e as duas triggers de trava (erros com SQLSTATE `TRV01`) | aplicada em 03/10/2026 |
 | `006_mensagens_trava.sql` | Corrige o texto de três mensagens da 005 que mandavam o usuário fazer o que a própria trava proíbe, e dá `TRV01` à segunda quitação de legado. Só substitui as duas funções | aplicada em 03/10/2026 |
+| `007_repasses.sql` | Cria `aliquotas_repasse` e `movimentos_entre_empresas`, a coluna `ordens_pagamento.aliquota_repasse`, as views `devidos_entre_empresas` e `saldo_entre_empresas`, e trava os campos que definem o repasse na ordem recebida | aplicada em 05/10/2026 |
 
 Duas ressalvas honestas sobre esse processo:
 
@@ -121,6 +122,11 @@ Duas ressalvas honestas sobre esse processo:
 - **Os arquivos são um registro parcial, não o schema de verdade.** A coluna `criado_em`, usada
   por `agent/src/services/auditoria.js`, não é criada por nenhuma migration — foi adicionada
   pelo painel. O schema de referência é o do Supabase.
+- **Função de trigger substituída aparece em mais de uma migration.** `trv_ordem_transicao`
+  foi criada pela 005, reescrita pela 006 (mensagens) e pela 007 (alíquota e travas da ordem
+  recebida), sempre com `create or replace`. A versão que está no banco é a da migration mais
+  alta — procurar a regra na 005 leva a uma versão antiga. O mesmo vale para
+  `trv_viagem_em_ordem`, criada na 005 e reescrita na 006.
 
 ### Acesso aos dados
 

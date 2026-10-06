@@ -13,7 +13,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ITENS_FINANCEIRO, ITENS_LANCAMENTO } from "@/lib/navegacao";
+import { ITENS_FINANCEIRO, ITENS_LANCAMENTO, ITENS_RODAPE } from "@/lib/navegacao";
 
 // Altura dos itens: 48 px no celular e 44 px no computador (docs/design.md). O
 // `group-data-[collapsible=icon]` existe porque o próprio shadcn força 32 px no modo
@@ -99,6 +99,9 @@ export default function MenuLateral({ onSair }) {
 
       <SidebarFooter>
         <SidebarMenu>
+          {/* Configuração vem antes do Sair: é item de navegação, e o Sair fecha a lista. */}
+          {ITENS_RODAPE.map(desenharItem)}
+
           <SidebarMenuItem>
             <SidebarMenuButton onClick={onSair} tooltip="Sair" className={ALTURA_ITEM}>
               <LogOut aria-hidden="true" />

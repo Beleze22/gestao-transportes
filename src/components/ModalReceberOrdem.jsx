@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SeletorEmpresa from "@/components/SeletorEmpresa";
+import PreviaRepasse from "@/components/PreviaRepasse";
 import { brl } from "@/lib/formato";
 import { hojeISO } from "@/lib/campos";
 
@@ -15,9 +16,11 @@ import { hojeISO } from "@/lib/campos";
 // numa conta só, e no resumo cada viagem continua contando para a empresa que a realizou.
 // É por isso que o texto diz "o dinheiro caiu na conta da" e não "empresa".
 //
-// O bloco de repasse entre as empresas que aparece no protótipo desta tela é da spec 03 —
-// aqui ele não existe.
-export default function ModalReceberOrdem({ ordem, total, onFechar, onConfirmar }) {
+// A prévia do repasse (spec 03) aparece aqui porque o valor depende da conta escolhida — e
+// é a última chance de notar que a conta está errada antes de o repasse entrar no saldo.
+export default function ModalReceberOrdem({
+  ordem, total, totais, aliquotas = [], onFechar, onConfirmar,
+}) {
   const [data, setData] = useState(hojeISO);
   const [conta, setConta] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -62,6 +65,21 @@ export default function ModalReceberOrdem({ ordem, total, onFechar, onConfirmar 
             valor={conta}
             onChange={setConta}
             rotulo="O dinheiro caiu na conta da"
+          />
+
+          {/* A alíquota usada é a da EMISSORA da nota, e é ela que o banco congela na
+              ordem no momento do recebimento. */}
+          <PreviaRepasse
+            totais={totais ?? { Rohan: 0, TransBeleze: 0 }}
+            comNota={ordem.com_nota}
+            empresaNota={ordem.empresa_nota}
+            empresaRecebedora={conta}
+            aliquotaDaEmissora={
+              Number(aliquotas.find((a) => a.empresa === ordem.empresa_nota)?.aliquota ?? 0)
+            }
+            atualizadaEm={
+              aliquotas.find((a) => a.empresa === ordem.empresa_nota)?.atualizada_em
+            }
           />
 
           <DialogFooter>
