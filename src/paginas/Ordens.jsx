@@ -15,9 +15,9 @@ import { brl, dataCurta } from "@/lib/formato";
 import { hojeISO } from "@/lib/campos";
 
 const FILTROS = [
-  { chave: "todas", rotulo: "Todas" },
-  { chave: "aberta", rotulo: "Abertas" },
   { chave: "fechada", rotulo: "Fechadas" },
+  { chave: "aberta", rotulo: "Abertas" },
+  { chave: "todas", rotulo: "Todas" },
   { chave: "recebida", rotulo: "Recebidas" },
 ];
 
@@ -36,7 +36,7 @@ function somarOrdens(ordens, resumoPorId) {
 
 export default function Ordens() {
   const ctx = useOutletContext();
-  const [filtro, setFiltro] = useState("todas");
+  const [filtro, setFiltro] = useState("fechada");
   const [busca, setBusca] = useState("");
   const hoje = hojeISO();
   const mesAtual = hoje.slice(0, 7);
