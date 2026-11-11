@@ -114,6 +114,7 @@ arquivo diz como aplicar.
 | `005_ordens_pagamento.sql` | Cria `ordens_pagamento` e `configuracao_financeira`, a coluna `viagens.ordem_id`, a view `ordens_resumo` e as duas triggers de trava (erros com SQLSTATE `TRV01`) | aplicada em 03/10/2026 |
 | `006_mensagens_trava.sql` | Corrige o texto de três mensagens da 005 que mandavam o usuário fazer o que a própria trava proíbe, e dá `TRV01` à segunda quitação de legado. Só substitui as duas funções | aplicada em 03/10/2026 |
 | `007_repasses.sql` | Cria `aliquotas_repasse` e `movimentos_entre_empresas`, a coluna `ordens_pagamento.aliquota_repasse`, as views `devidos_entre_empresas` e `saldo_entre_empresas`, e trava os campos que definem o repasse na ordem recebida | aplicada em 05/10/2026 |
+| `008_status_viagem_pg_cron.sql` | Ativa o `pg_cron` e agenda `marcar_viagens_realizadas()` de hora em hora: a passagem diária do status da viagem sai do agente e vai para o banco (FIX #18) | **a aplicar** |
 
 Duas ressalvas honestas sobre esse processo:
 
@@ -127,6 +128,19 @@ Duas ressalvas honestas sobre esse processo:
   recebida), sempre com `create or replace`. A versão que está no banco é a da migration mais
   alta — procurar a regra na 005 leva a uma versão antiga. O mesmo vale para
   `trv_viagem_em_ordem`, criada na 005 e reescrita na 006.
+
+### Tarefa agendada no banco
+
+Uma viagem lançada para hoje ou para o futuro nasce `confirmada`. Quem a passa para
+`concluida` (ou `realizada_pendente`, se falta valor) depois que a data passa é a função
+`marcar_viagens_realizadas()`, chamada de hora em hora pelo `pg_cron` do Supabase — tarefa
+`marcar-viagens-realizadas`, migration 008. **Sem essa passagem a viagem não aparece no
+"A faturar"**, que só lista `concluida` e `realizada_pendente`.
+
+Até nov/2026 isso era um cron dentro do agente. Quando o Railway pausou o serviço, viagens
+já feitas ficaram `confirmada` por dias, sem erro nenhum na tela (FIX #18). Para conferir se
+a tarefa está rodando, cada execução fica em `cron.job_run_details`; a consulta pronta está
+no fim de `docs/verificacoes/008-status-viagem-testes.sql`.
 
 ### Acesso aos dados
 
@@ -170,7 +184,9 @@ costuma dar **não se aplica** aqui:
   de CPU que não contam I/O assíncrono. Um turno do agente leva 10 a 25 segundos, quase tudo
   esperando rede. Caberia.
 - **Agendamento não é o problema.** O Supabase Cron (`pg_cron`) roda de minuto em minuto e sabe
-  invocar Edge Function. Os três `cron.schedule` de `agent/src/scheduler.js` teriam para onde ir.
+  invocar Edge Function. Os dois `cron.schedule` que restam em `agent/src/scheduler.js` teriam
+  para onde ir — o terceiro, a passagem diária do status da viagem, já foi para o `pg_cron` na
+  migration 008.
 
 O que impede de verdade são **três características estruturais** do agente:
 
@@ -187,9 +203,9 @@ reenvia. Nenhuma das duas tem equivalente no banco. Num ambiente sem estado elas
 não existem — e o resultado é registro financeiro duplicado, que já aconteceu aqui por outro
 motivo (veja o FIX #11 no `MELHORIAS.md`).
 
-**3. Duas das três tarefas agendadas não têm rota HTTP.** `marcarRealizadasPendentes` e
-`rodarAuditoriaDiaria` só são alcançáveis pelo cron interno; não existe endpoint que as dispare.
-E o agendador é iniciado de dentro do `app.listen` — sem processo residente, nada roda.
+**3. A auditoria diária não tem rota HTTP.** `rodarAuditoriaDiaria` só é alcançável pelo cron
+interno; não existe endpoint que a dispare. E o agendador é iniciado de dentro do
+`app.listen` — sem processo residente, nada roda.
 
 **Conclusão: o agente fica no Railway.** Migrar trocaria um serviço que funciona por um conjunto
 de peças novas (locks no banco, tabela de updates processados, `pg_cron`, CLI do Supabase que
