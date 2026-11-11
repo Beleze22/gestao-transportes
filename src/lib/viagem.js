@@ -83,8 +83,8 @@ export function statusPorCompletude(p) {
 // Status considerando também a data. statusPorCompletude é cego a ela: uma viagem
 // completa vira "confirmada", que significa "agendada, vai acontecer". Para uma viagem
 // lançada depois do fato — o caso normal de quem registra o dia no fim do expediente —
-// isso está errado, e só era corrigido pelo cron `marcarRealizadasPendentes` na
-// meia-noite seguinte. Aqui a mesma regra é aplicada na hora.
+// isso está errado, e só seria corrigido na virada do dia pela tarefa agendada no banco
+// (`marcar_viagens_realizadas`, migration 008). Aqui a mesma regra é aplicada na hora.
 export function statusParaViagem(payload, hoje = hojeISO()) {
   const base = statusPorCompletude(payload);
   if (base === "rascunho") return base;          // incompleta continua rascunho

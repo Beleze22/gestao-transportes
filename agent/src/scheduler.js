@@ -1,8 +1,13 @@
 import cron from "node-cron";
 import { listarConfigNotificacoes, viagensDoDia, rascunhosProximosDias, viagensComValorPendente } from "./services/agenda.js";
 import { enviarDigestManha, enviarDigestNoite } from "./services/notify.js";
-import { marcarRealizadasPendentes } from "./services/viagens.js";
 import { rodarAuditoriaDiaria } from "./services/auditoria.js";
+
+// [FIX #18] A passagem diária de "confirmada" para "concluida"/"realizada_pendente" não
+// mora mais aqui: é a função marcar_viagens_realizadas(), chamada de hora em hora pelo
+// pg_cron do Supabase (migration 008). Quando o Railway pausou o agente em nov/2026,
+// viagens já feitas ficaram "confirmada" e sumiram do "A faturar" — uma regra que vale
+// para a web não pode depender deste processo estar de pé.
 
 function horaAtual() {
   return new Date().toLocaleTimeString("pt-BR", {
@@ -51,15 +56,6 @@ export function iniciarScheduler() {
   // Roda a cada minuto e dispara os digests cujo horário configurado bate com o horário atual.
   cron.schedule("* * * * *", () => {
     tick().catch((err) => console.error("[scheduler] erro no tick:", err.message));
-  });
-
-  // Vira viagens "confirmada" cuja data já passou para "realizada_pendente" (à meia-noite).
-  cron.schedule("0 0 * * *", () => {
-    marcarRealizadasPendentes()
-      .then((alteradas) => {
-        if (alteradas.length) console.log(`[scheduler] ${alteradas.length} viagem(ns) marcada(s) como realizada_pendente`);
-      })
-      .catch((err) => console.error("[scheduler] erro ao marcar viagens pendentes:", err.message));
   });
 
   // Auditoria de integridade diária às 23h — compara confirmações do agente vs registros reais no banco.

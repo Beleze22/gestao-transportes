@@ -25,8 +25,9 @@ function statusPorCompletude(v) {
 // [FIX #15] Status considerando também a data. statusPorCompletude é cego a ela: uma
 // viagem completa vira "confirmada", que significa "agendada, vai acontecer". Quando o
 // lançamento é feito depois do fato — o caso normal de quem registra o dia no fim do
-// expediente — isso fica errado até o cron marcarRealizadasPendentes passar na
-// meia-noite seguinte. Aqui a mesma regra é aplicada na hora da gravação.
+// expediente — isso ficaria errado até a virada do dia ser tratada pela tarefa agendada
+// no banco (marcar_viagens_realizadas, migration 008). Aqui a mesma regra é aplicada na
+// hora da gravação.
 export function statusParaViagem(v) {
   const base = statusPorCompletude(v);
   if (base === "rascunho") return base;             // incompleta continua rascunho
@@ -96,43 +97,5 @@ export async function consultarViagens(filtros = {}) {
   return data;
 }
 
-export async function marcarRealizadasPendentes() {
-  const hoje = hojeISO();
-
-  // Viagens com valores definidos → concluida direto
-  const { data: concluidas, error: err1 } = await supabase
-    .from("viagens")
-    .update({ status: "concluida" })
-    .eq("status", "confirmada")
-    .lt("data", hoje)
-    .not("valor_frete", "is", null)
-    .not("valor_motorista", "is", null)
-    .select("id");
-  if (err1) throw err1;
-
-  // Viagens sem valores → realizada_pendente para cobrança.
-  // Inclui confirmada_sem_valor — sem isso elas ficariam presas nesse status para sempre.
-  const { data: pendentes, error: err2 } = await supabase
-    .from("viagens")
-    .update({ status: "realizada_pendente" })
-    .in("status", ["confirmada", "confirmada_sem_valor"])
-    .lt("data", hoje)
-    .select("id");
-  if (err2) throw err2;
-
-  // [FIX #15] Fecha as que já receberam os valores. Sem este passo, uma viagem que caiu
-  // em realizada_pendente por falta de valor ficava presa nesse status para sempre,
-  // mesmo depois de preenchida — os dois passos acima só olham para "confirmada". Havia
-  // 5 viagens de junho/2026 nessa situação, com frete e pagamento preenchidos.
-  const { data: fechadas, error: err3 } = await supabase
-    .from("viagens")
-    .update({ status: "concluida" })
-    .eq("status", "realizada_pendente")
-    .lt("data", hoje)
-    .not("valor_frete", "is", null)
-    .not("valor_motorista", "is", null)
-    .select("id");
-  if (err3) throw err3;
-
-  return [...(concluidas ?? []), ...(pendentes ?? []), ...(fechadas ?? [])];
-}
+// [FIX #18] marcarRealizadasPendentes saiu daqui: a passagem diária do status é a função
+// marcar_viagens_realizadas() no banco, agendada pelo pg_cron (migration 008).
