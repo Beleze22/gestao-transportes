@@ -114,7 +114,7 @@ arquivo diz como aplicar.
 | `005_ordens_pagamento.sql` | Cria `ordens_pagamento` e `configuracao_financeira`, a coluna `viagens.ordem_id`, a view `ordens_resumo` e as duas triggers de trava (erros com SQLSTATE `TRV01`) | aplicada em 03/10/2026 |
 | `006_mensagens_trava.sql` | Corrige o texto de três mensagens da 005 que mandavam o usuário fazer o que a própria trava proíbe, e dá `TRV01` à segunda quitação de legado. Só substitui as duas funções | aplicada em 03/10/2026 |
 | `007_repasses.sql` | Cria `aliquotas_repasse` e `movimentos_entre_empresas`, a coluna `ordens_pagamento.aliquota_repasse`, as views `devidos_entre_empresas` e `saldo_entre_empresas`, e trava os campos que definem o repasse na ordem recebida | aplicada em 05/10/2026 |
-| `008_status_viagem_pg_cron.sql` | Ativa o `pg_cron` e agenda `marcar_viagens_realizadas()` de hora em hora: a passagem diária do status da viagem sai do agente e vai para o banco (FIX #18) | **a aplicar** |
+| `008_status_viagem_pg_cron.sql` | Ativa o `pg_cron` e agenda `marcar_viagens_realizadas()` de hora em hora: a passagem diária do status da viagem sai do agente e vai para o banco (FIX #18) | aplicada em 11/11/2026 |
 
 Duas ressalvas honestas sobre esse processo:
 
