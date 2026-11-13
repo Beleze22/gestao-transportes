@@ -115,6 +115,7 @@ arquivo diz como aplicar.
 | `006_mensagens_trava.sql` | Corrige o texto de três mensagens da 005 que mandavam o usuário fazer o que a própria trava proíbe, e dá `TRV01` à segunda quitação de legado. Só substitui as duas funções | aplicada em 03/10/2026 |
 | `007_repasses.sql` | Cria `aliquotas_repasse` e `movimentos_entre_empresas`, a coluna `ordens_pagamento.aliquota_repasse`, as views `devidos_entre_empresas` e `saldo_entre_empresas`, e trava os campos que definem o repasse na ordem recebida | aplicada em 05/10/2026 |
 | `008_status_viagem_pg_cron.sql` | Ativa o `pg_cron` e agenda `marcar_viagens_realizadas()` de hora em hora: a passagem diária do status da viagem sai do agente e vai para o banco (FIX #18) | aplicada em 11/11/2026 |
+| `009_estacionamento.sql` | Cria `viagens.valor_estacionamento` (spec 05); `ordens_resumo` passa a somar frete + estacionamento, o que leva o estacionamento ao repasse; `trv_viagem_em_ordem` trava o campo em ordem fechada ou recebida | aplicada em 12/11/2026 |
 
 Duas ressalvas honestas sobre esse processo:
 
@@ -127,7 +128,9 @@ Duas ressalvas honestas sobre esse processo:
   foi criada pela 005, reescrita pela 006 (mensagens) e pela 007 (alíquota e travas da ordem
   recebida), sempre com `create or replace`. A versão que está no banco é a da migration mais
   alta — procurar a regra na 005 leva a uma versão antiga. O mesmo vale para
-  `trv_viagem_em_ordem`, criada na 005 e reescrita na 006.
+  `trv_viagem_em_ordem`, criada na 005 e reescrita na 006 (mensagens) e na 009
+  (estacionamento travado com o frete), e para a view `ordens_resumo`, criada na 005 e
+  reescrita na 009.
 
 ### Tarefa agendada no banco
 
