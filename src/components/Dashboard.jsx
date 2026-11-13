@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { situacaoFinanceira } from "@/lib/ordem";
+import ValorViagem from "@/components/ValorViagem";
 
 // ── CONSTANTS ──────────────────────────────────────────────
 
@@ -226,7 +227,13 @@ export default function Dashboard({
     const fat  = viagensAtivas.reduce((s, v) => s + (v.valor_frete || 0), 0);
     const mot  = viagensAtivas.reduce((s, v) => s + (v.valor_motorista || 0), 0);
     const desp = despesasFilt.reduce((s, d) => s + (d.valor || 0), 0);
-    return { faturamento: fat, motoristas: mot, despesas: desp, lucro: fat - mot - desp };
+    // [spec 05] Estacionamento é reembolso: a empresa paga e o cliente devolve. Fica fora
+    // do faturamento e do lucro, e aparece só como informação no cartão de Faturamento.
+    const estac = viagensAtivas.reduce((s, v) => s + (v.valor_estacionamento || 0), 0);
+    return {
+      faturamento: fat, motoristas: mot, despesas: desp, lucro: fat - mot - desp,
+      estacionamento: estac,
+    };
   }, [viagensAtivas, despesasFilt]);
 
   const barData = useMemo(() => {
@@ -392,7 +399,16 @@ export default function Dashboard({
       {/* ── KPIs ── */}
       {/* Sem o lg:, os quatro cartões ficariam 2x2 e enormes nos 1024px do notebook. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard title="Faturamento" value={kpis.faturamento} icon={DollarSign} sub={`${viagensAtivas.length} viagens`} />
+        <KpiCard
+          title="Faturamento"
+          value={kpis.faturamento}
+          icon={DollarSign}
+          sub={
+            kpis.estacionamento > 0
+              ? `${viagensAtivas.length} viagens · + ${brl(kpis.estacionamento)} de estacionamento (reembolso)`
+              : `${viagensAtivas.length} viagens`
+          }
+        />
         <KpiCard title="Pgto Motoristas" value={kpis.motoristas} icon={Truck} positive={false} />
         <KpiCard title="Outras Despesas" value={kpis.despesas} icon={TrendingDown} positive={false} sub={`${despesasFilt.length} registros`} />
         <KpiCard title="Lucro Líquido" value={kpis.lucro} icon={TrendingUp} positive={kpis.lucro >= 0} />
@@ -624,7 +640,7 @@ export default function Dashboard({
                       className={`text-right font-medium tabular-nums whitespace-nowrap ${
                         cancelada ? "line-through" : ""
                       }`}>
-                      {v.valor_frete != null ? brl(v.valor_frete) : "—"}
+                      <ValorViagem viagem={v} />
                     </TableCell>
                     <TableCell className="w-10 px-1 py-1">
                       <Button

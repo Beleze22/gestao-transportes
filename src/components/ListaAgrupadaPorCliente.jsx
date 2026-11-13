@@ -5,6 +5,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import EtiquetaEmpresa from "@/components/EtiquetaEmpresa";
+import ValorViagem from "@/components/ValorViagem";
 import { brl, dataCurta, rota } from "@/lib/formato";
 import { totaisPorEmpresa } from "@/lib/ordem";
 
@@ -145,7 +146,7 @@ export default function ListaAgrupadaPorCliente({ grupos, acoes, vazio }) {
                             <EtiquetaEmpresa empresa={v.empresa} />
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {brl(v.valor_frete)}
+                            <ValorViagem viagem={v} />
                           </TableCell>
                         </TableRow>
                       ))}

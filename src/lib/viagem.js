@@ -23,6 +23,7 @@ export function viagemVazia() {
     caminhao_id: "",
     valorFrete: "",
     valorMotorista: "",
+    valorEstacionamento: "",
     localCarregamento: "",
     horarioCarregamento: "",
     localDescarregamento: "",
@@ -44,6 +45,9 @@ export function linhaParaFormulario(row) {
     caminhao_id: row.caminhao_id != null ? String(row.caminhao_id) : "",
     valorFrete: row.valor_frete != null ? String(row.valor_frete) : "",
     valorMotorista: row.valor_motorista != null ? String(row.valor_motorista) : "",
+    // Zero aparece como campo vazio: estacionamento é exceção, e um "0" em toda viagem
+    // faria o campo parecer obrigatório.
+    valorEstacionamento: row.valor_estacionamento ? String(row.valor_estacionamento) : "",
     localCarregamento: texto(row.local_carregamento),
     horarioCarregamento: horaCurta(row.horario_carregamento),
     localDescarregamento: texto(row.local_descarregamento),
@@ -63,6 +67,8 @@ export function formularioParaPayload(form) {
     caminhao_id: numero(form.caminhao_id),
     valor_frete: numero(form.valorFrete),
     valor_motorista: numero(form.valorMotorista),
+    // [spec 05] A coluna é `not null default 0`: vazio grava 0, nunca null.
+    valor_estacionamento: numero(form.valorEstacionamento) ?? 0,
     local_carregamento: form.localCarregamento || null,
     horario_carregamento: form.horarioCarregamento || null,
     local_descarregamento: form.localDescarregamento || null,

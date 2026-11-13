@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import EtiquetaEmpresa from "@/components/EtiquetaEmpresa";
 import EtiquetaSituacao from "@/components/EtiquetaSituacao";
+import ValorViagem from "@/components/ValorViagem";
 import ModalFecharOrdem from "@/components/ModalFecharOrdem";
 import ModalReceberOrdem from "@/components/ModalReceberOrdem";
 import ModalReabrirOrdem from "@/components/ModalReabrirOrdem";
@@ -176,7 +177,7 @@ export default function Ordem() {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{v.motoristas?.nome ?? "—"}</TableCell>
                     <TableCell><EtiquetaEmpresa empresa={v.empresa} /></TableCell>
-                    <TableCell className="text-right tabular-nums">{brl(v.valor_frete)}</TableCell>
+                    <TableCell className="text-right tabular-nums"><ValorViagem viagem={v} /></TableCell>
                     {aberta && (
                       <TableCell>
                         <Button
@@ -207,6 +208,14 @@ export default function Ordem() {
           <span className="text-sm text-muted-foreground">
             TransBeleze {brl(totais.TransBeleze)}
           </span>
+          {/* [spec 05] O total cobrado inclui o estacionamento; a composição aparece só
+              quando há estacionamento, para não repetir o total em toda ordem. */}
+          {totais.estacionamento > 0 && (
+            <span className="text-sm text-muted-foreground">
+              frete {brl(totais.total - totais.estacionamento)} + estacionamento{" "}
+              {brl(totais.estacionamento)}
+            </span>
+          )}
           <strong className="text-lg">Total {brl(totais.total)}</strong>
         </div>
       </Card>
@@ -244,7 +253,7 @@ export default function Ordem() {
                     <span className="tabular-nums">{dataCurta(v.data)}</span>
                     <EtiquetaEmpresa empresa={v.empresa} />
                     <span className="truncate text-muted-foreground">{rota(v)}</span>
-                    <span className="ml-auto tabular-nums">{brl(v.valor_frete)}</span>
+                    <span className="ml-auto text-right tabular-nums"><ValorViagem viagem={v} /></span>
                   </Label>
                 ))}
               </div>

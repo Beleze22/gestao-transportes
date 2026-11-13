@@ -183,7 +183,7 @@ export default function ViagemForm({
 
           <div className="space-y-1.5">
             <Label>Valores (R$)</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Input
                 type="number"
                 placeholder="Frete"
@@ -196,6 +196,18 @@ export default function ViagemForm({
                 placeholder="Pgto Motorista"
                 value={viagem.valorMotorista}
                 onChange={(e) => set("valorMotorista")(e.target.value)}
+              />
+              {/* [spec 05] Pago pela empresa e cobrado do cliente: entra no total da ordem,
+                  então trava junto com o frete quando a ordem está fechada. */}
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Estacionamento"
+                aria-label="Estacionamento cobrado do cliente (opcional)"
+                value={viagem.valorEstacionamento ?? ""}
+                onChange={(e) => set("valorEstacionamento")(e.target.value)}
+                disabled={travado}
               />
             </div>
           </div>

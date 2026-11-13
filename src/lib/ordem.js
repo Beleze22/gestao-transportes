@@ -102,14 +102,20 @@ export function rotuloNota(ordem) {
   return partes.filter(Boolean).join(", ") || "Com nota";
 }
 
-// Soma de frete por empresa. O total de uma ordem nunca é gravado — é sempre esta soma,
-// e a view `ordens_resumo` faz a mesma conta no banco para as listas.
+// O que é cobrado do cliente por viagem: frete + estacionamento (spec 05).
+export const valorCobrado = (v) => (v.valor_frete || 0) + (v.valor_estacionamento || 0);
+
+// Soma do valor cobrado por empresa. O total de uma ordem nunca é gravado — é sempre esta
+// soma, e a view `ordens_resumo` (migration 009) faz a mesma conta no banco para as listas
+// e para o repasse. Mudou aqui, muda lá: a prévia do repasse sai deste total.
+// `estacionamento` vai à parte só para mostrar a composição do total.
 export function totaisPorEmpresa(viagens) {
-  const t = { Rohan: 0, TransBeleze: 0, total: 0 };
+  const t = { Rohan: 0, TransBeleze: 0, total: 0, estacionamento: 0 };
   for (const v of viagens) {
-    const valor = v.valor_frete || 0;
+    const valor = valorCobrado(v);
     if (v.empresa === "Rohan" || v.empresa === "TransBeleze") t[v.empresa] += valor;
     t.total += valor;
+    t.estacionamento += v.valor_estacionamento || 0;
   }
   return t;
 }
